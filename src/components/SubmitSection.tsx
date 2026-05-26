@@ -1,9 +1,15 @@
 import { useMatch } from '../context/MatchContext';
 
 export function SubmitSection() {
-  const { session, isReadOnly, submitRound } = useMatch();
-  const { pendingTags, submitError, toastMessage } = session;
-  const canSubmit = !isReadOnly && pendingTags.length > 0;
+  const {
+    activeSession,
+    tagFormReadOnly,
+    isEditingRound,
+    submitRound,
+    saveEditRound,
+  } = useMatch();
+  const { pendingTags, submitError, toastMessage } = activeSession;
+  const canSubmit = !tagFormReadOnly && pendingTags.length > 0;
 
   return (
     <div className="submit-section">
@@ -21,9 +27,9 @@ export function SubmitSection() {
         type="button"
         className="btn-submit"
         disabled={!canSubmit}
-        onClick={() => submitRound()}
+        onClick={() => (isEditingRound ? saveEditRound() : submitRound())}
       >
-        提交本局成绩
+        {isEditingRound ? '保存修改' : '提交本局成绩'}
       </button>
     </div>
   );

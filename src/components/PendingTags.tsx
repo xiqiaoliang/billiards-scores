@@ -3,8 +3,8 @@ import { formatTagLabel, sortScoreTags } from '../domain/scoring';
 import { useMatch } from '../context/MatchContext';
 
 export function PendingTags() {
-  const { session, isReadOnly, removePendingTag } = useMatch();
-  const { pendingTags, player1Name, player2Name } = session;
+  const { activeSession, tagFormReadOnly, removePendingTag } = useMatch();
+  const { pendingTags, player1Name, player2Name } = activeSession;
 
   return (
     <div className="pending-tags">
@@ -18,13 +18,13 @@ export function PendingTags() {
             return (
               <span
                 key={tag.id}
-                className={`pending-tag${isReadOnly ? ' pending-tag--readonly' : ''}`}
+                className={`pending-tag${tagFormReadOnly ? ' pending-tag--readonly' : ''}`}
                 style={{ borderColor: color, color }}
-                onClick={() => !isReadOnly && removePendingTag(tag.id)}
-                role={isReadOnly ? undefined : 'button'}
-                tabIndex={isReadOnly ? undefined : 0}
+                onClick={() => !tagFormReadOnly && removePendingTag(tag.id)}
+                role={tagFormReadOnly ? undefined : 'button'}
+                tabIndex={tagFormReadOnly ? undefined : 0}
                 onKeyDown={(e) => {
-                  if (!isReadOnly && (e.key === 'Enter' || e.key === ' ')) {
+                  if (!tagFormReadOnly && (e.key === 'Enter' || e.key === ' ')) {
                     e.preventDefault();
                     removePendingTag(tag.id);
                   }

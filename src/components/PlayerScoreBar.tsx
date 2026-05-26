@@ -14,12 +14,20 @@ interface PlayerScoreBarProps {
 }
 
 export function PlayerScoreBar({ player }: PlayerScoreBarProps) {
-  const { session, isReadOnly, addScoreTag, setLetGan, setPlayerName } =
-    useMatch();
+  const {
+    session,
+    activeSession,
+    tagFormReadOnly,
+    isEditingRound,
+    addScoreTag,
+    setLetGan,
+    setPlayerName,
+  } = useMatch();
   const color = player === 1 ? PLAYER1_COLOR : PLAYER2_COLOR;
   const name = player === 1 ? session.player1Name : session.player2Name;
   const letGanChecked =
-    player === 1 ? session.letGan.player1 : session.letGan.player2;
+    player === 1 ? activeSession.letGan.player1 : activeSession.letGan.player2;
+  const canEditNames = !tagFormReadOnly && !isEditingRound;
   const buttons: ScoreItemType[] = letGanChecked
     ? LET_GAN_BUTTONS
     : REGULAR_BUTTONS;
@@ -30,7 +38,7 @@ export function PlayerScoreBar({ player }: PlayerScoreBarProps) {
         <PlayerNameEditor
           name={name}
           color={color}
-          editable={!isReadOnly}
+          editable={canEditNames}
           className="player-score-bar__name"
           onNameChange={(n) => setPlayerName(player, n)}
         />
@@ -38,7 +46,7 @@ export function PlayerScoreBar({ player }: PlayerScoreBarProps) {
           <input
             type="checkbox"
             checked={letGanChecked}
-            disabled={isReadOnly}
+            disabled={tagFormReadOnly}
             onChange={(e) => setLetGan(player, e.target.checked)}
           />
           让杆得分
@@ -50,7 +58,7 @@ export function PlayerScoreBar({ player }: PlayerScoreBarProps) {
             key={type}
             type="button"
             className="score-btn"
-            disabled={isReadOnly}
+            disabled={tagFormReadOnly}
             onClick={() => addScoreTag(player, type)}
           >
             {SCORE_LABELS[type]}

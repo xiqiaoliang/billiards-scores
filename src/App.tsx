@@ -4,6 +4,7 @@ import { OverviewTable } from './components/OverviewTable';
 import { PageHeader } from './components/PageHeader';
 import { PendingTags } from './components/PendingTags';
 import { PlayerScoreBar } from './components/PlayerScoreBar';
+import { RoundEditModal } from './components/RoundEditModal';
 import { RoundHistory } from './components/RoundHistory';
 import { SubmitSection } from './components/SubmitSection';
 import { MatchProvider, useMatch } from './context/MatchContext';
@@ -34,6 +35,7 @@ function ScoringView() {
         <RoundHistory match={match} />
       </div>
       <ConfirmModal />
+      <RoundEditModal />
     </div>
   );
 }

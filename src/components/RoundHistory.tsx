@@ -1,3 +1,4 @@
+import { useCallback } from 'react';
 import { PLAYER1_COLOR, PLAYER2_COLOR } from '../domain/constants';
 import {
   calcRoundWinnerNet,
@@ -9,25 +10,47 @@ import {
   sortScoreTags,
 } from '../domain/scoring';
 import type { MatchRecord, RoundRecord } from '../domain/types';
+import { useMatch } from '../context/MatchContext';
+import { useLongPress } from '../hooks/useLongPress';
 import { formatRoundTimeLine } from '../utils/formatTime';
 
 interface RoundHistoryProps {
   match: MatchRecord;
 }
 
-export function RoundHistory({ match }: RoundHistoryProps) {
-  const isArchived = match.status === 'archived';
-  const rounds = [...match.rounds].sort((a, b) => b.roundNumber - a.roundNumber);
+function RoundHistoryItem({
+  round,
+  match,
+  isArchived,
+}: {
+  round: RoundRecord;
+  match: MatchRecord;
+  isArchived: boolean;
+}) {
+  const { beginEditRound } = useMatch();
 
-  const renderRoundHeader = (round: RoundRecord) => {
-    const winTag = getRoundWinTag(round.tags);
-    const winnerLabel = getRoundWinnerLabel(round.tags, match);
-    const winnerColor =
-      winTag?.player === 1 ? PLAYER1_COLOR : PLAYER2_COLOR;
-    const roundNet =
-      winTag != null ? calcRoundWinnerNet(round, winTag.player) : 0;
+  const handleEdit = useCallback(() => {
+    if (!isArchived) {
+      beginEditRound(round.roundNumber);
+    }
+  }, [beginEditRound, isArchived, round.roundNumber]);
 
-    return (
+  const longPressHandlers = useLongPress(handleEdit, { disabled: isArchived });
+
+  const winTag = getRoundWinTag(round.tags);
+  const winnerLabel = getRoundWinnerLabel(round.tags, match);
+  const winnerColor = winTag?.player === 1 ? PLAYER1_COLOR : PLAYER2_COLOR;
+  const roundNet =
+    winTag != null ? calcRoundWinnerNet(round, winTag.player) : 0;
+
+  const p1Summary = formatPlayerRoundSummary(round.tags, 1);
+  const p2Summary = formatPlayerRoundSummary(round.tags, 2);
+
+  return (
+    <div
+      className={`round-item${isArchived ? '' : ' round-item--editable'}`}
+      {...longPressHandlers}
+    >
       <div className="round-item__header">
         <div className="round-item__header-left">
           <span className="round-item__round-no">第 {round.roundNumber} 局</span>
@@ -48,8 +71,37 @@ export function RoundHistory({ match }: RoundHistoryProps) {
           )}
         </span>
       </div>
-    );
-  };
+      <div className="round-item__tags">
+        {sortScoreTags(round.tags).map((tag) => {
+          const name =
+            tag.player === 1 ? match.player1Name : match.player2Name;
+          const color = tag.player === 1 ? PLAYER1_COLOR : PLAYER2_COLOR;
+          return (
+            <span
+              key={tag.id}
+              className="pending-tag pending-tag--readonly"
+              style={{ borderColor: color, color }}
+            >
+              {formatTagLabel(name, tag)}
+            </span>
+          );
+        })}
+      </div>
+      <div className="round-item__stats">
+        <span style={{ color: PLAYER1_COLOR }}>
+          {match.player1Name} {p1Summary}
+        </span>
+        <span style={{ color: PLAYER2_COLOR }}>
+          {match.player2Name} {p2Summary}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+export function RoundHistory({ match }: RoundHistoryProps) {
+  const isArchived = match.status === 'archived';
+  const rounds = [...match.rounds].sort((a, b) => b.roundNumber - a.roundNumber);
 
   return (
     <section
@@ -59,39 +111,19 @@ export function RoundHistory({ match }: RoundHistoryProps) {
         逐局得分历史记录
         {isArchived && <span className="round-history__badge">已结束</span>}
       </h2>
+      {!isArchived && rounds.length > 0 && (
+        <p className="round-history__tip">长按某一局可修改该局得分</p>
+      )}
       {rounds.length === 0 ? (
         <p className="round-history__empty">暂无历史记录</p>
       ) : (
         rounds.map((round) => (
-          <div key={round.roundNumber} className="round-item">
-            {renderRoundHeader(round)}
-            <div className="round-item__tags">
-              {sortScoreTags(round.tags).map((tag) => {
-                const name =
-                  tag.player === 1 ? match.player1Name : match.player2Name;
-                const color =
-                  tag.player === 1 ? PLAYER1_COLOR : PLAYER2_COLOR;
-                return (
-                  <span
-                    key={tag.id}
-                    className="pending-tag pending-tag--readonly"
-                    style={{ borderColor: color, color }}
-                  >
-                    {formatTagLabel(name, tag)}
-                  </span>
-                );
-              })}
-            </div>
-            <div className="round-item__stats">
-              <span style={{ color: PLAYER1_COLOR }}>
-                {match.player1Name} {formatPlayerRoundSummary(round.tags, 1)}
-              </span>
-              <span style={{ color: PLAYER2_COLOR }}>
-                {match.player2Name}{' '}
-                {formatPlayerRoundSummary(round.tags, 2)}
-              </span>
-            </div>
-          </div>
+          <RoundHistoryItem
+            key={round.roundNumber}
+            round={round}
+            match={match}
+            isArchived={isArchived}
+          />
         ))
       )}
     </section>
