@@ -9,11 +9,19 @@ function hasWinTypeGlobal(tags: PendingTag[]): boolean {
   return tags.some((t) => WIN_TYPES.includes(t.type));
 }
 
+export function hasGolden9Exclusive(tags: PendingTag[]): boolean {
+  return tags.some((t) => t.type === 'golden_9');
+}
+
 export function validateAddTag(
   pendingTags: PendingTag[],
   _player: PlayerId,
   type: ScoreItemType,
 ): ValidationResult {
+  if (hasGolden9Exclusive(pendingTags)) {
+    return { ok: false, message: VALIDATION_MESSAGES.golden9Exclusive };
+  }
+
   if (type === 'break_foul') {
     if (countTypeGlobal(pendingTags, 'break_foul') >= 1) {
       return { ok: false, message: VALIDATION_MESSAGES.breakFoulGlobal };

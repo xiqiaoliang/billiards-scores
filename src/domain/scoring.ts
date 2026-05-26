@@ -1,6 +1,7 @@
 import {
   FOUL_OPPONENT_BONUS,
   FOUL_TYPES,
+  HEI_JIN_LABELS,
   SCORE_LABELS,
   SCORE_VALUES,
   TAG_DISPLAY_ORDER,
@@ -25,6 +26,22 @@ export function isFoulType(type: ScoreItemType): boolean {
   return FOUL_TYPES.includes(type);
 }
 
+export function isHeiJinWinType(
+  type: ScoreItemType,
+): type is 'normal_win' | 'small_gold' | 'big_gold' | 'golden_9' {
+  return (
+    type === 'normal_win' ||
+    type === 'golden_9' ||
+    type === 'small_gold' ||
+    type === 'big_gold'
+  );
+}
+
+export function getHeiJinLabel(type: ScoreItemType): string | null {
+  if (!isHeiJinWinType(type)) return null;
+  return HEI_JIN_LABELS[type];
+}
+
 export function sortScoreTags(tags: PendingTag[]): PendingTag[] {
   return [...tags].sort(
     (a, b) => TAG_DISPLAY_ORDER[a.type] - TAG_DISPLAY_ORDER[b.type],
@@ -39,6 +56,14 @@ export function getTagScoreForPlayer(
   tag: PendingTag,
   player: PlayerId,
 ): { base: number; extra: number; total: number } {
+  if (tag.isHeiJin && isHeiJinWinType(tag.type)) {
+    if (tag.player === player) {
+      return { base: 0, extra: 0, total: 0 };
+    }
+    const base = getBaseScore(tag.type) + FOUL_OPPONENT_BONUS;
+    return { base, extra: 0, total: base };
+  }
+
   if (isFoulType(tag.type)) {
     if (tag.player === player) {
       return { base: 0, extra: 0, total: 0 };
@@ -114,6 +139,29 @@ function aggregatePlayerFromRounds(
     totalScore += stats.roundTotal;
 
     for (const tag of round.tags) {
+      const opponent: PlayerId = player === 1 ? 2 : 1;
+
+      if (tag.player === player && tag.isHeiJin) {
+        foulCount += 1;
+        continue;
+      }
+
+      if (tag.player === opponent && tag.isHeiJin && isHeiJinWinType(tag.type)) {
+        switch (tag.type) {
+          case 'normal_win':
+          case 'golden_9':
+            normalWinCount += 1;
+            break;
+          case 'small_gold':
+            smallGoldCount += 1;
+            break;
+          case 'big_gold':
+            bigGoldCount += 1;
+            break;
+        }
+        continue;
+      }
+
       if (tag.player !== player) continue;
       switch (tag.type) {
         case 'foul':
@@ -124,6 +172,7 @@ function aggregatePlayerFromRounds(
           splitCount += 1;
           break;
         case 'normal_win':
+        case 'golden_9':
           normalWinCount += 1;
           break;
         case 'small_gold':
@@ -159,6 +208,12 @@ export function formatTagLabel(
   playerName: string,
   tag: PendingTag,
 ): string {
+  if (tag.isHeiJin) {
+    const heiJinLabel = getHeiJinLabel(tag.type);
+    if (heiJinLabel) {
+      return `${playerName} ${heiJinLabel}`;
+    }
+  }
   const label = SCORE_LABELS[tag.type];
   if (tag.isLetGan) {
     return `${playerName} 让杆${label}`;
@@ -175,6 +230,7 @@ const ROUND_SUMMARY_TYPES: ScoreItemType[] = [
   'foul',
   'split',
   'normal_win',
+  'golden_9',
   'small_gold',
   'big_gold',
 ];
@@ -194,21 +250,89 @@ export function formatPlayerRoundSummary(
   const parts: string[] = [];
 
   for (const type of ROUND_SUMMARY_TYPES) {
-    const sourceTags = isFoulType(type) ? opponentTags : playerTags;
-    const ofType = sourceTags.filter((t) => t.type === type);
+    if (isFoulType(type)) {
+      const sourceTags = opponentTags.filter((t) => t.type === type && !t.isHeiJin);
+      if (sourceTags.length === 0) continue;
+      const score = sourceTags.reduce(
+        (sum, t) => sum + getTagScoreForPlayer(t, player).total,
+        0,
+      );
+      if (score === 0) continue;
+      parts.push(`对方${SCORE_LABELS[type]}${formatScoreValue(score)}`);
+      continue;
+    }
+
+    if (type === 'golden_9') {
+      const ownWins = playerTags.filter((t) => t.type === 'golden_9' && !t.isHeiJin);
+      const oppHeiJin = opponentTags.filter(
+        (t) => t.type === 'golden_9' && t.isHeiJin,
+      );
+
+      if (ownWins.length > 0) {
+        const score = ownWins.reduce(
+          (sum, t) => sum + getTagScoreForPlayer(t, player).total,
+          0,
+        );
+        if (score !== 0) {
+          const prefix = ownWins.some((t) => t.isLetGan) ? '让杆' : '';
+          parts.push(`${prefix}${SCORE_LABELS.golden_9}${formatScoreValue(score)}`);
+        }
+      }
+
+      if (oppHeiJin.length > 0) {
+        const score = oppHeiJin.reduce(
+          (sum, t) => sum + getTagScoreForPlayer(t, player).total,
+          0,
+        );
+        if (score !== 0) {
+          parts.push(
+            `对方${HEI_JIN_LABELS.golden_9}${formatScoreValue(score)}`,
+          );
+        }
+      }
+      continue;
+    }
+
+    if (isHeiJinWinType(type)) {
+      const ownWins = playerTags.filter((t) => t.type === type && !t.isHeiJin);
+      const oppHeiJin = opponentTags.filter(
+        (t) => t.type === type && t.isHeiJin,
+      );
+
+      if (ownWins.length > 0) {
+        const score = ownWins.reduce(
+          (sum, t) => sum + getTagScoreForPlayer(t, player).total,
+          0,
+        );
+        if (score !== 0) {
+          const prefix = ownWins.some((t) => t.isLetGan) ? '让杆' : '';
+          parts.push(`${prefix}${SCORE_LABELS[type]}${formatScoreValue(score)}`);
+        }
+      }
+
+      if (oppHeiJin.length > 0) {
+        const score = oppHeiJin.reduce(
+          (sum, t) => sum + getTagScoreForPlayer(t, player).total,
+          0,
+        );
+        if (score !== 0) {
+          parts.push(
+            `对方${HEI_JIN_LABELS[type]}${formatScoreValue(score)}`,
+          );
+        }
+      }
+      continue;
+    }
+
+    const ofType = playerTags.filter((t) => t.type === type);
     if (ofType.length === 0) continue;
     const score = ofType.reduce(
       (sum, t) => sum + getTagScoreForPlayer(t, player).total,
       0,
     );
     if (score === 0) continue;
-    const label = SCORE_LABELS[type];
-    const prefix = isFoulType(type)
-      ? '对方'
-      : ofType.some((t) => t.isLetGan)
-        ? '让杆'
-        : '';
-    parts.push(`${prefix}${label}${formatScoreValue(score)}`);
+    const prefix = ofType.some((t) => t.isLetGan) ? '让杆' : '';
+    parts.push(`${prefix}${SCORE_LABELS[type]}${formatScoreValue(score)}`);
   }
 
   const total = calcRoundPlayerStats(tags, player).roundTotal;
@@ -225,12 +349,31 @@ export function getRoundWinTag(tags: PendingTag[]): PendingTag | null {
   );
 }
 
+/** 本局胜方选手（黑金时胜方为提交黑金者的对手） */
+export function getRoundWinnerPlayer(tags: PendingTag[]): PlayerId | null {
+  const winTag = getRoundWinTag(tags);
+  if (!winTag) return null;
+  if (winTag.isHeiJin) {
+    return winTag.player === 1 ? 2 : 1;
+  }
+  return winTag.player;
+}
+
 export function getRoundWinnerLabel(
   tags: PendingTag[],
   match: MatchRecord,
 ): string | null {
   const winTag = getRoundWinTag(tags);
-  if (!winTag) return null;
+  const winnerPlayer = getRoundWinnerPlayer(tags);
+  if (!winTag || winnerPlayer === null) return null;
+
+  if (winTag.isHeiJin) {
+    const heiJinLabel = getHeiJinLabel(winTag.type);
+    if (heiJinLabel) {
+      return `${getPlayerName(match, winnerPlayer)} 对方${heiJinLabel}`;
+    }
+  }
+
   return formatTagLabel(getPlayerName(match, winTag.player), winTag);
 }
 

@@ -9,6 +9,7 @@ import {
 } from 'react';
 import {
   applyPlayerNames,
+  inferHeiJinFromTags,
   inferLetGanFromTags,
   rebuildRoundRecord,
 } from '../domain/matchUtils';
@@ -37,6 +38,7 @@ function createSessionFromMatch(match: MatchRecord): SessionState {
   return {
     pendingTags: [],
     letGan: { player1: false, player2: false },
+    heiJin: { player1: false, player2: false },
     player1Name: match.player1Name,
     player2Name: match.player2Name,
     submitError: null,
@@ -62,13 +64,16 @@ type MatchAction =
   | { type: 'INIT_MATCH'; match: MatchRecord }
   | { type: 'SET_MATCH'; match: MatchRecord }
   | { type: 'SET_LET_GAN'; player: PlayerId; checked: boolean }
+  | { type: 'SET_HEI_JIN'; player: PlayerId; checked: boolean }
   | { type: 'SET_PLAYER_NAME'; player: PlayerId; name: string }
   | { type: 'ADD_TAG'; tag: PendingTag }
+  | { type: 'SET_PENDING_TAGS'; tags: PendingTag[] }
   | { type: 'REMOVE_TAG'; id: string }
   | { type: 'SET_SUBMIT_ERROR'; message: string | null }
   | { type: 'SET_TOAST'; message: string | null }
   | { type: 'CLEAR_PENDING' }
   | { type: 'RESET_LET_GAN' }
+  | { type: 'RESET_HEI_JIN' }
   | { type: 'SET_CONFIRM_MODAL'; modal: ConfirmModalType }
   | { type: 'SET_PENDING_DELETE_IDS'; ids: string[] }
   | { type: 'SET_VIEW'; view: AppView }
@@ -80,6 +85,7 @@ type MatchAction =
 const initialSession: SessionState = {
   pendingTags: [],
   letGan: { player1: false, player2: false },
+  heiJin: { player1: false, player2: false },
   player1Name: '',
   player2Name: '',
   submitError: null,
@@ -136,9 +142,24 @@ function matchReducer(state: MatchState, action: MatchAction): MatchState {
       };
     case 'SET_LET_GAN': {
       const key = action.player === 1 ? 'player1' : 'player2';
+      const heiJinKey = action.player === 1 ? 'player1' : 'player2';
       return updateTagSession(state, (session) => ({
         ...session,
         letGan: { ...session.letGan, [key]: action.checked },
+        heiJin: action.checked
+          ? { ...session.heiJin, [heiJinKey]: false }
+          : session.heiJin,
+      }));
+    }
+    case 'SET_HEI_JIN': {
+      const key = action.player === 1 ? 'player1' : 'player2';
+      const letGanKey = action.player === 1 ? 'player1' : 'player2';
+      return updateTagSession(state, (session) => ({
+        ...session,
+        heiJin: { ...session.heiJin, [key]: action.checked },
+        letGan: action.checked
+          ? { ...session.letGan, [letGanKey]: false }
+          : session.letGan,
       }));
     }
     case 'SET_PLAYER_NAME': {
@@ -152,6 +173,12 @@ function matchReducer(state: MatchState, action: MatchAction): MatchState {
       return updateTagSession(state, (session) => ({
         ...session,
         pendingTags: [...session.pendingTags, action.tag],
+        submitError: null,
+      }));
+    case 'SET_PENDING_TAGS':
+      return updateTagSession(state, (session) => ({
+        ...session,
+        pendingTags: action.tags,
         submitError: null,
       }));
     case 'REMOVE_TAG':
@@ -187,6 +214,14 @@ function matchReducer(state: MatchState, action: MatchAction): MatchState {
           letGan: { player1: false, player2: false },
         },
       };
+    case 'RESET_HEI_JIN':
+      return {
+        ...state,
+        session: {
+          ...state.session,
+          heiJin: { player1: false, player2: false },
+        },
+      };
     case 'SET_CONFIRM_MODAL':
       return { ...state, confirmModal: action.modal };
     case 'SET_PENDING_DELETE_IDS':
@@ -203,13 +238,18 @@ function matchReducer(state: MatchState, action: MatchAction): MatchState {
         (r) => r.roundNumber === action.roundNumber,
       );
       if (!round) return state;
-      const tags = round.tags.map((t) => ({ ...t }));
+      const tags = round.tags.map((t) => ({
+        ...t,
+        isLetGan: t.isLetGan ?? false,
+        isHeiJin: t.isHeiJin ?? false,
+      }));
       return {
         ...state,
         editingRoundNumber: action.roundNumber,
         editSession: {
           pendingTags: tags,
           letGan: inferLetGanFromTags(tags),
+          heiJin: inferHeiJinFromTags(tags),
           player1Name: state.session.player1Name,
           player2Name: state.session.player2Name,
           submitError: null,
@@ -247,8 +287,10 @@ interface MatchContextValue {
   historyLoading: boolean;
   isReadOnly: boolean;
   addScoreTag: (player: PlayerId, type: ScoreItemType) => void;
+  addGolden9Tag: (player: PlayerId) => void;
   removePendingTag: (id: string) => void;
   setLetGan: (player: PlayerId, checked: boolean) => void;
+  setHeiJin: (player: PlayerId, checked: boolean) => void;
   setPlayerName: (player: PlayerId, name: string) => void;
   submitRound: () => Promise<void>;
   beginEditRound: (roundNumber: number) => void;
@@ -327,6 +369,8 @@ export function MatchProvider({ children }: { children: ReactNode }) {
 
       const isLetGan =
         player === 1 ? tagSession.letGan.player1 : tagSession.letGan.player2;
+      const isHeiJin =
+        player === 1 ? tagSession.heiJin.player1 : tagSession.heiJin.player2;
 
       const result = validateAddTag(tagSession.pendingTags, player, type);
       if (!result.ok) {
@@ -341,7 +385,38 @@ export function MatchProvider({ children }: { children: ReactNode }) {
           player,
           type,
           isLetGan,
+          isHeiJin,
         },
+      });
+    },
+    [state.match, state.session, state.editSession, state.editingRoundNumber, tagFormReadOnly],
+  );
+
+  const addGolden9Tag = useCallback(
+    (player: PlayerId) => {
+      if (!state.match || tagFormReadOnly) return;
+
+      const tagSession =
+        state.editingRoundNumber !== null
+          ? state.editSession
+          : state.session;
+
+      const isLetGan =
+        player === 1 ? tagSession.letGan.player1 : tagSession.letGan.player2;
+      const isHeiJin =
+        player === 1 ? tagSession.heiJin.player1 : tagSession.heiJin.player2;
+
+      dispatch({
+        type: 'SET_PENDING_TAGS',
+        tags: [
+          {
+            id: generateTagId(),
+            player,
+            type: 'golden_9',
+            isLetGan,
+            isHeiJin,
+          },
+        ],
       });
     },
     [state.match, state.session, state.editSession, state.editingRoundNumber, tagFormReadOnly],
@@ -351,6 +426,14 @@ export function MatchProvider({ children }: { children: ReactNode }) {
     (id: string) => {
       if (tagFormReadOnly) return;
       dispatch({ type: 'REMOVE_TAG', id });
+    },
+    [tagFormReadOnly],
+  );
+
+  const setHeiJin = useCallback(
+    (player: PlayerId, checked: boolean) => {
+      if (tagFormReadOnly) return;
+      dispatch({ type: 'SET_HEI_JIN', player, checked });
     },
     [tagFormReadOnly],
   );
@@ -405,6 +488,7 @@ export function MatchProvider({ children }: { children: ReactNode }) {
     dispatch({ type: 'SET_MATCH', match: updated });
     dispatch({ type: 'CLEAR_PENDING' });
     dispatch({ type: 'RESET_LET_GAN' });
+    dispatch({ type: 'RESET_HEI_JIN' });
   }, [state.match, state.session, isReadOnly]);
 
   const beginEditRound = useCallback(
@@ -553,8 +637,10 @@ export function MatchProvider({ children }: { children: ReactNode }) {
       tagFormReadOnly,
       isReadOnly,
       addScoreTag,
+      addGolden9Tag,
       removePendingTag,
       setLetGan,
+      setHeiJin,
       setPlayerName,
       submitRound,
       beginEditRound,
@@ -588,8 +674,10 @@ export function MatchProvider({ children }: { children: ReactNode }) {
       tagFormReadOnly,
       isReadOnly,
       addScoreTag,
+      addGolden9Tag,
       removePendingTag,
       setLetGan,
+      setHeiJin,
       setPlayerName,
       submitRound,
       beginEditRound,

@@ -7,6 +7,7 @@ export type ScoreItemType =
   | 'break_foul'
   | 'split'
   | 'normal_win'
+  | 'golden_9'
   | 'small_gold'
   | 'big_gold';
 
@@ -17,6 +18,7 @@ export interface PendingTag {
   player: PlayerId;
   type: ScoreItemType;
   isLetGan: boolean;
+  isHeiJin: boolean;
 }
 
 export interface RoundPlayerStats {
@@ -71,6 +73,7 @@ export interface LetGanState {
 export interface SessionState {
   pendingTags: PendingTag[];
   letGan: LetGanState;
+  heiJin: LetGanState;
   player1Name: string;
   player2Name: string;
   submitError: string | null;

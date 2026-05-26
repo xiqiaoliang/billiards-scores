@@ -16,6 +16,7 @@ export const SCORE_VALUES: Record<ScoreItemType, number> = {
   break_foul: 0,
   split: 2,
   normal_win: 4,
+  golden_9: 4,
   small_gold: 7,
   big_gold: 10,
 };
@@ -25,6 +26,7 @@ export const SCORE_LABELS: Record<ScoreItemType, string> = {
   break_foul: '开球犯规',
   split: '分球',
   normal_win: '普胜',
+  golden_9: '黄金9',
   small_gold: '小金',
   big_gold: '大金',
 };
@@ -45,7 +47,28 @@ export const LET_GAN_BUTTONS: ScoreItemType[] = [
   'big_gold',
 ];
 
-export const WIN_TYPES: ScoreItemType[] = ['normal_win', 'small_gold', 'big_gold'];
+export const HEI_JIN_BUTTONS: ScoreItemType[] = [
+  'normal_win',
+  'small_gold',
+  'big_gold',
+];
+
+export const HEI_JIN_LABELS: Record<
+  'normal_win' | 'small_gold' | 'big_gold' | 'golden_9',
+  string
+> = {
+  normal_win: '黑金',
+  golden_9: '黑黄金9',
+  small_gold: '黑小金',
+  big_gold: '黑大金',
+};
+
+export const WIN_TYPES: ScoreItemType[] = [
+  'normal_win',
+  'golden_9',
+  'small_gold',
+  'big_gold',
+];
 
 /** 标签展示/存储顺序：开球犯规最前，取胜项最后 */
 export const TAG_DISPLAY_ORDER: Record<ScoreItemType, number> = {
@@ -53,8 +76,9 @@ export const TAG_DISPLAY_ORDER: Record<ScoreItemType, number> = {
   foul: 1,
   split: 2,
   normal_win: 3,
-  small_gold: 4,
-  big_gold: 5,
+  golden_9: 4,
+  small_gold: 5,
+  big_gold: 6,
 };
 
 export const LIMITED_ONCE_TYPES: ScoreItemType[] = ['break_foul', 'split'];
@@ -66,7 +90,8 @@ export const VALIDATION_MESSAGES = {
   breakFoulGlobal: '本局开球犯规只能有一名选手获得',
   splitGlobal: '本局分球只能有一名选手获得',
   winGlobal: '本局取胜项只能有一名选手获得',
-  winRequired: '本局须选择取胜项（普胜、小金或大金）',
+  winRequired: '本局须选择取胜项（普胜、黄金9、小金或大金）',
+  golden9Exclusive: '黄金9为独占得分，不可再添加其他计分项',
 } as const;
 
 export const ARCHIVE_CONFIRM_TEXT =

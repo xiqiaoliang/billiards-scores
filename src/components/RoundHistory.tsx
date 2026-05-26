@@ -7,6 +7,7 @@ import {
   formatTagLabel,
   getRoundWinTag,
   getRoundWinnerLabel,
+  getRoundWinnerPlayer,
   sortScoreTags,
 } from '../domain/scoring';
 import type { MatchRecord, RoundRecord } from '../domain/types';
@@ -38,10 +39,12 @@ function RoundHistoryItem({
   const longPressHandlers = useLongPress(handleEdit, { disabled: isArchived });
 
   const winTag = getRoundWinTag(round.tags);
+  const winnerPlayer = getRoundWinnerPlayer(round.tags);
   const winnerLabel = getRoundWinnerLabel(round.tags, match);
-  const winnerColor = winTag?.player === 1 ? PLAYER1_COLOR : PLAYER2_COLOR;
+  const winnerColor =
+    winnerPlayer === 1 ? PLAYER1_COLOR : PLAYER2_COLOR;
   const roundNet =
-    winTag != null ? calcRoundWinnerNet(round, winTag.player) : 0;
+    winnerPlayer != null ? calcRoundWinnerNet(round, winnerPlayer) : 0;
 
   const p1Summary = formatPlayerRoundSummary(round.tags, 1);
   const p2Summary = formatPlayerRoundSummary(round.tags, 2);

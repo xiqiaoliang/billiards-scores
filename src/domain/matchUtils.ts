@@ -18,6 +18,13 @@ export function inferLetGanFromTags(tags: PendingTag[]): LetGanState {
   };
 }
 
+export function inferHeiJinFromTags(tags: PendingTag[]): LetGanState {
+  return {
+    player1: tags.some((t) => t.player === 1 && t.isHeiJin),
+    player2: tags.some((t) => t.player === 2 && t.isHeiJin),
+  };
+}
+
 export function rebuildRoundRecord(
   existing: RoundRecord,
   tags: PendingTag[],
