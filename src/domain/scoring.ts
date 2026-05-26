@@ -1,4 +1,6 @@
 import {
+  FOUL_OPPONENT_BONUS,
+  FOUL_TYPES,
   SCORE_LABELS,
   SCORE_VALUES,
   TAG_DISPLAY_ORDER,
@@ -19,6 +21,10 @@ export function getBaseScore(type: ScoreItemType): number {
   return SCORE_VALUES[type];
 }
 
+export function isFoulType(type: ScoreItemType): boolean {
+  return FOUL_TYPES.includes(type);
+}
+
 export function sortScoreTags(tags: PendingTag[]): PendingTag[] {
   return [...tags].sort(
     (a, b) => TAG_DISPLAY_ORDER[a.type] - TAG_DISPLAY_ORDER[b.type],
@@ -29,11 +35,25 @@ export function formatNetScore(value: number): string {
   return value > 0 ? `+${value}` : String(value);
 }
 
-export function getTagScoreDelta(tag: PendingTag): {
-  base: number;
-  extra: number;
-  total: number;
-} {
+export function getTagScoreForPlayer(
+  tag: PendingTag,
+  player: PlayerId,
+): { base: number; extra: number; total: number } {
+  if (isFoulType(tag.type)) {
+    if (tag.player === player) {
+      return { base: 0, extra: 0, total: 0 };
+    }
+    const base = FOUL_OPPONENT_BONUS;
+    if (tag.isLetGan) {
+      return { base, extra: base, total: base * 2 };
+    }
+    return { base, extra: 0, total: base };
+  }
+
+  if (tag.player !== player) {
+    return { base: 0, extra: 0, total: 0 };
+  }
+
   const base = getBaseScore(tag.type);
   if (tag.isLetGan) {
     return { base, extra: base, total: base * 2 };
@@ -50,8 +70,7 @@ export function calcRoundPlayerStats(
   let roundTotal = 0;
 
   for (const tag of tags) {
-    if (tag.player !== player) continue;
-    const delta = getTagScoreDelta(tag);
+    const delta = getTagScoreForPlayer(tag, player);
     baseScore += delta.base;
     extraScore += delta.extra;
     roundTotal += delta.total;
@@ -169,19 +188,26 @@ export function formatPlayerRoundSummary(
   tags: PendingTag[],
   player: PlayerId,
 ): string {
+  const opponent: PlayerId = player === 1 ? 2 : 1;
   const playerTags = tags.filter((t) => t.player === player);
+  const opponentTags = tags.filter((t) => t.player === opponent);
   const parts: string[] = [];
 
   for (const type of ROUND_SUMMARY_TYPES) {
-    const ofType = playerTags.filter((t) => t.type === type);
+    const sourceTags = isFoulType(type) ? opponentTags : playerTags;
+    const ofType = sourceTags.filter((t) => t.type === type);
     if (ofType.length === 0) continue;
     const score = ofType.reduce(
-      (sum, t) => sum + getTagScoreDelta(t).total,
+      (sum, t) => sum + getTagScoreForPlayer(t, player).total,
       0,
     );
     if (score === 0) continue;
     const label = SCORE_LABELS[type];
-    const prefix = ofType.some((t) => t.isLetGan) ? '让杆' : '';
+    const prefix = isFoulType(type)
+      ? '对方'
+      : ofType.some((t) => t.isLetGan)
+        ? '让杆'
+        : '';
     parts.push(`${prefix}${label}${formatScoreValue(score)}`);
   }
 

@@ -6,9 +6,14 @@ export const PLAYER2_COLOR = '#F53F3F';
 export const DEFAULT_PLAYER1_NAME = '吴';
 export const DEFAULT_PLAYER2_NAME = '席';
 
+/** 犯规类标签给对手加分，犯规者本人不计分 */
+export const FOUL_OPPONENT_BONUS = 1;
+
+export const FOUL_TYPES: ScoreItemType[] = ['foul', 'break_foul'];
+
 export const SCORE_VALUES: Record<ScoreItemType, number> = {
-  foul: -1,
-  break_foul: -1,
+  foul: 0,
+  break_foul: 0,
   split: 2,
   normal_win: 4,
   small_gold: 7,
@@ -25,8 +30,8 @@ export const SCORE_LABELS: Record<ScoreItemType, string> = {
 };
 
 export const REGULAR_BUTTONS: ScoreItemType[] = [
-  'foul',
   'break_foul',
+  'foul',
   'split',
   'normal_win',
   'small_gold',
