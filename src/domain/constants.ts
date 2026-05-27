@@ -37,20 +37,17 @@ export const REGULAR_BUTTONS: ScoreItemType[] = [
   'split',
   'normal_win',
   'small_gold',
-  'big_gold',
 ];
 
 export const LET_GAN_BUTTONS: ScoreItemType[] = [
   'split',
   'normal_win',
   'small_gold',
-  'big_gold',
 ];
 
 export const HEI_JIN_BUTTONS: ScoreItemType[] = [
   'normal_win',
   'small_gold',
-  'big_gold',
 ];
 
 export const HEI_JIN_LABELS: Record<

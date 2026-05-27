@@ -70,16 +70,26 @@ export function PlayerScoreBar({ player }: PlayerScoreBarProps) {
           />
           黑金
         </label>
-        {!letGanChecked && (
+        <div className="player-score-bar__win-btns">
+          {!letGanChecked && (
+            <button
+              type="button"
+              className="player-score-bar__golden9"
+              disabled={tagFormReadOnly}
+              onClick={() => addGolden9Tag(player)}
+            >
+              {SCORE_LABELS.golden_9}
+            </button>
+          )}
           <button
             type="button"
             className="player-score-bar__golden9"
-            disabled={tagFormReadOnly}
-            onClick={() => addGolden9Tag(player)}
+            disabled={scoreButtonsDisabled}
+            onClick={() => addScoreTag(player, 'big_gold')}
           >
-            {SCORE_LABELS.golden_9}
+            {SCORE_LABELS.big_gold}
           </button>
-        )}
+        </div>
       </div>
       <div className="score-buttons">
         {buttons.map((type) => (

@@ -23,7 +23,7 @@ import type {
   ScoreItemType,
   SessionState,
 } from '../domain/types';
-import { validateAddTag, validateSubmit } from '../domain/validators';
+import { validateSubmit, resolveScoreTagAction } from '../domain/validators';
 import {
   archiveMatch,
   createAndSaveMatch,
@@ -372,9 +372,34 @@ export function MatchProvider({ children }: { children: ReactNode }) {
       const isHeiJin =
         player === 1 ? tagSession.heiJin.player1 : tagSession.heiJin.player2;
 
-      const result = validateAddTag(tagSession.pendingTags, player, type);
-      if (!result.ok) {
-        dispatch({ type: 'SET_TOAST', message: result.message });
+      const resolved = resolveScoreTagAction(
+        tagSession.pendingTags,
+        player,
+        type,
+        isLetGan,
+        isHeiJin,
+      );
+
+      if (resolved.kind === 'noop') {
+        return;
+      }
+
+      if (resolved.kind === 'error') {
+        dispatch({ type: 'SET_TOAST', message: resolved.message });
+        return;
+      }
+
+      if (resolved.kind === 'replace') {
+        const remaining = tagSession.pendingTags.filter(
+          (t) => !resolved.removeIds.includes(t.id),
+        );
+        dispatch({
+          type: 'SET_PENDING_TAGS',
+          tags: [
+            ...remaining,
+            { id: generateTagId(), ...resolved.tag },
+          ],
+        });
         return;
       }
 
@@ -382,10 +407,7 @@ export function MatchProvider({ children }: { children: ReactNode }) {
         type: 'ADD_TAG',
         tag: {
           id: generateTagId(),
-          player,
-          type,
-          isLetGan,
-          isHeiJin,
+          ...resolved.tag,
         },
       });
     },
@@ -406,9 +428,21 @@ export function MatchProvider({ children }: { children: ReactNode }) {
       const isHeiJin =
         player === 1 ? tagSession.heiJin.player1 : tagSession.heiJin.player2;
 
+      const existingGolden9 = tagSession.pendingTags.find(
+        (t) => t.type === 'golden_9',
+      );
+      if (existingGolden9?.player === player) {
+        return;
+      }
+
+      const preservedFouls = tagSession.pendingTags.filter(
+        (t) => t.type === 'foul',
+      );
+
       dispatch({
         type: 'SET_PENDING_TAGS',
         tags: [
+          ...preservedFouls,
           {
             id: generateTagId(),
             player,
