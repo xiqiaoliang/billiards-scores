@@ -110,13 +110,15 @@ export function RoundHistory({ match }: RoundHistoryProps) {
     <section
       className={`section round-history${isArchived ? ' archived' : ''}`}
     >
-      <h2 className="section-title">
-        逐局得分历史记录
-        {isArchived && <span className="round-history__badge">已结束</span>}
-      </h2>
-      {!isArchived && rounds.length > 0 && (
-        <p className="round-history__tip">长按某一局可修改该局得分</p>
-      )}
+      <div className="round-history__header">
+        <h2 className="section-title">
+          逐局得分历史记录
+          {isArchived && <span className="round-history__badge">已结束</span>}
+        </h2>
+        {!isArchived && rounds.length > 0 && (
+          <p className="round-history__tip">长按某一局可修改该局得分</p>
+        )}
+      </div>
       {rounds.length === 0 ? (
         <p className="round-history__empty">暂无历史记录</p>
       ) : (

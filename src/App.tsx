@@ -19,7 +19,6 @@ function ScoringView() {
       <OverviewTable match={match} />
       <div className="scroll-content">
         <section className="section">
-          <h2 className="section-title">本局选手记分选择</h2>
           <PlayerScoreBar player={1} />
           <PlayerScoreBar player={2} />
         </section>
