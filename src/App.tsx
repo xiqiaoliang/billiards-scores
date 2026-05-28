@@ -1,4 +1,5 @@
 import { ConfirmModal } from './components/ConfirmModal';
+import { ExportPreviewModal } from './components/ExportPreviewModal';
 import { MatchHistoryPage } from './components/MatchHistoryPage';
 import { OverviewTable } from './components/OverviewTable';
 import { PageHeader } from './components/PageHeader';
@@ -10,14 +11,15 @@ import { SubmitSection } from './components/SubmitSection';
 import { MatchProvider, useMatch } from './context/MatchContext';
 
 function ScoringView() {
-  const { match } = useMatch();
+  const { match, exportRootRef } = useMatch();
   if (!match) return null;
 
   return (
     <div className="scoring-shell">
-      <PageHeader />
-      <OverviewTable match={match} />
-      <div className="scroll-content">
+      <div ref={exportRootRef} className="export-capture-root">
+        <PageHeader />
+        <OverviewTable match={match} />
+        <div className="scroll-content">
         <section className="section">
           <PlayerScoreBar player={1} />
           <PlayerScoreBar player={2} />
@@ -32,8 +34,10 @@ function ScoringView() {
 
         <SubmitSection />
         <RoundHistory match={match} />
+        </div>
       </div>
       <ConfirmModal />
+      <ExportPreviewModal />
       <RoundEditModal />
     </div>
   );

@@ -5,8 +5,15 @@ import {
   useEffect,
   useMemo,
   useReducer,
+  useRef,
+  useState,
   type ReactNode,
+  type RefObject,
 } from 'react';
+import {
+  buildMatchExportFilename,
+  exportPageImage,
+} from '../utils/exportPageImage';
 import {
   applyPlayerNames,
   inferHeiJinFromTags,
@@ -307,6 +314,11 @@ interface MatchContextValue {
   refreshHistoryMatches: () => Promise<void>;
   requestDeleteHistory: (ids: string[]) => void;
   confirmDeleteHistory: () => Promise<void>;
+  exportRootRef: RefObject<HTMLDivElement | null>;
+  exporting: boolean;
+  exportPreviewUrl: string | null;
+  exportMatchAsImage: () => Promise<void>;
+  closeExportPreview: () => void;
 }
 
 const MatchContext = createContext<MatchContextValue | null>(null);
@@ -317,6 +329,9 @@ function generateTagId(): string {
 
 export function MatchProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(matchReducer, initialState);
+  const exportRootRef = useRef<HTMLDivElement | null>(null);
+  const [exporting, setExporting] = useState(false);
+  const [exportPreviewUrl, setExportPreviewUrl] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -633,6 +648,47 @@ export function MatchProvider({ children }: { children: ReactNode }) {
     dispatch({ type: 'SET_CONFIRM_MODAL', modal: 'deleteHistory' });
   }, []);
 
+  const closeExportPreview = useCallback(() => {
+    setExportPreviewUrl(null);
+  }, []);
+
+  const exportMatchAsImage = useCallback(async () => {
+    if (!state.match || state.match.status !== 'archived' || exporting) return;
+
+    const root = exportRootRef.current;
+    if (!root) return;
+
+    setExporting(true);
+    try {
+      const filename = buildMatchExportFilename(
+        state.match.player1Name,
+        state.match.player2Name,
+        state.match.createdAt,
+      );
+      const result = await exportPageImage(root, filename);
+
+      if (result.method === 'preview') {
+        setExportPreviewUrl(result.dataUrl);
+        dispatch({
+          type: 'SET_TOAST',
+          message: '请长按图片保存到相册',
+        });
+      } else {
+        dispatch({
+          type: 'SET_TOAST',
+          message: '图片已保存',
+        });
+      }
+    } catch {
+      dispatch({
+        type: 'SET_TOAST',
+        message: '导出失败，请重试',
+      });
+    } finally {
+      setExporting(false);
+    }
+  }, [state.match, exporting]);
+
   const confirmDeleteHistory = useCallback(async () => {
     const ids = state.pendingDeleteIds;
     if (ids.length === 0) return;
@@ -691,6 +747,11 @@ export function MatchProvider({ children }: { children: ReactNode }) {
       refreshHistoryMatches,
       requestDeleteHistory,
       confirmDeleteHistory,
+      exportRootRef,
+      exporting,
+      exportPreviewUrl,
+      exportMatchAsImage,
+      closeExportPreview,
     }),
     [
       state.loading,
@@ -728,6 +789,10 @@ export function MatchProvider({ children }: { children: ReactNode }) {
       refreshHistoryMatches,
       requestDeleteHistory,
       confirmDeleteHistory,
+      exporting,
+      exportPreviewUrl,
+      exportMatchAsImage,
+      closeExportPreview,
     ],
   );
 

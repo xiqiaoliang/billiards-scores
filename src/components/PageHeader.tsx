@@ -1,8 +1,14 @@
 import { useMatch } from '../context/MatchContext';
 
 export function PageHeader() {
-  const { isReadOnly, openNewMatchModal, openArchiveModal, openHistory } =
-    useMatch();
+  const {
+    isReadOnly,
+    exporting,
+    openNewMatchModal,
+    openArchiveModal,
+    openHistory,
+    exportMatchAsImage,
+  } = useMatch();
 
   return (
     <header className="page-header">
@@ -16,14 +22,25 @@ export function PageHeader() {
       </div>
       <h1 className="page-header__title">台球追分记分器</h1>
       <div className="page-header__actions">
-        <button
-          type="button"
-          className="btn-text btn-text--danger"
-          onClick={openArchiveModal}
-          disabled={isReadOnly}
-        >
-          结束本场比赛
-        </button>
+        {isReadOnly ? (
+          <button
+            type="button"
+            className="btn-text"
+            data-export-hide
+            onClick={() => exportMatchAsImage()}
+            disabled={exporting}
+          >
+            {exporting ? '导出中…' : '导出'}
+          </button>
+        ) : (
+          <button
+            type="button"
+            className="btn-text btn-text--danger"
+            onClick={openArchiveModal}
+          >
+            结束本场比赛
+          </button>
+        )}
       </div>
     </header>
   );
