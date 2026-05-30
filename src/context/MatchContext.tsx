@@ -325,6 +325,7 @@ interface MatchContextValue {
   exportRootRef: RefObject<HTMLDivElement | null>;
   exporting: boolean;
   exportPreviewUrl: string | null;
+  qrErrorDetail: string | null;
   exportMatchAsImage: () => Promise<void>;
   exportMatchAsQrCode: () => Promise<void>;
   downloadExportPreview: () => Promise<void>;
@@ -332,9 +333,36 @@ interface MatchContextValue {
   importMatchFromQrImage: (file: File) => Promise<boolean>;
   importMatchFromQrText: (text: string) => Promise<boolean>;
   closeExportPreview: () => void;
+  closeQrErrorDetail: () => void;
 }
 
 const MatchContext = createContext<MatchContextValue | null>(null);
+
+function formatErrorDetail(error: unknown): string {
+  const lines = [
+    '二维码生成失败',
+    `时间: ${new Date().toISOString()}`,
+    `UserAgent: ${typeof navigator !== 'undefined' ? navigator.userAgent : 'unknown'}`,
+  ];
+
+  if (error instanceof Error) {
+    lines.push(`错误类型: ${error.name}`);
+    lines.push(`错误信息: ${error.message}`);
+    if (error.stack) {
+      lines.push('错误堆栈:');
+      lines.push(error.stack);
+    }
+  } else {
+    lines.push('错误内容:');
+    try {
+      lines.push(JSON.stringify(error, null, 2));
+    } catch {
+      lines.push(String(error));
+    }
+  }
+
+  return lines.join('\n');
+}
 
 function generateTagId(): string {
   return `tag-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
@@ -345,6 +373,7 @@ export function MatchProvider({ children }: { children: ReactNode }) {
   const exportRootRef = useRef<HTMLDivElement | null>(null);
   const [exporting, setExporting] = useState(false);
   const [exportPreviewUrl, setExportPreviewUrl] = useState<string | null>(null);
+  const [qrErrorDetail, setQrErrorDetail] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -665,6 +694,10 @@ export function MatchProvider({ children }: { children: ReactNode }) {
     setExportPreviewUrl(null);
   }, []);
 
+  const closeQrErrorDetail = useCallback(() => {
+    setQrErrorDetail(null);
+  }, []);
+
   const exportMatchAsImage = useCallback(async () => {
     if (!state.match || state.match.status !== 'archived' || exporting) return;
 
@@ -706,6 +739,7 @@ export function MatchProvider({ children }: { children: ReactNode }) {
     if (!state.match || state.match.status !== 'archived' || exporting) return;
 
     setExporting(true);
+    setQrErrorDetail(null);
     try {
       const dataUrl = await generateMatchQrShareImage(state.match);
       setExportPreviewUrl(dataUrl);
@@ -713,10 +747,11 @@ export function MatchProvider({ children }: { children: ReactNode }) {
         type: 'SET_TOAST',
         message: '已生成二维码预览，请点击下方按钮下载',
       });
-    } catch {
+    } catch (error) {
+      setQrErrorDetail(formatErrorDetail(error));
       dispatch({
         type: 'SET_TOAST',
-        message: '二维码生成失败，请重试',
+        message: '二维码生成失败，已打开错误详情',
       });
     } finally {
       setExporting(false);
@@ -865,6 +900,7 @@ export function MatchProvider({ children }: { children: ReactNode }) {
       exportRootRef,
       exporting,
       exportPreviewUrl,
+      qrErrorDetail,
       exportMatchAsImage,
       exportMatchAsQrCode,
       downloadExportPreview,
@@ -872,6 +908,7 @@ export function MatchProvider({ children }: { children: ReactNode }) {
       importMatchFromQrImage,
       importMatchFromQrText,
       closeExportPreview,
+      closeQrErrorDetail,
     }),
     [
       state.loading,
@@ -911,6 +948,7 @@ export function MatchProvider({ children }: { children: ReactNode }) {
       confirmDeleteHistory,
       exporting,
       exportPreviewUrl,
+      qrErrorDetail,
       exportMatchAsImage,
       exportMatchAsQrCode,
       downloadExportPreview,
@@ -918,6 +956,7 @@ export function MatchProvider({ children }: { children: ReactNode }) {
       importMatchFromQrImage,
       importMatchFromQrText,
       closeExportPreview,
+      closeQrErrorDetail,
     ],
   );
 

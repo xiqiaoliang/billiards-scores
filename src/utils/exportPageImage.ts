@@ -87,6 +87,15 @@ function restoreExportControls(hidden: SavedVisibility[]) {
   }
 }
 
+function needsPreviewFallback(): boolean {
+  const ua = navigator.userAgent;
+  const isIOS =
+    /iPad|iPhone|iPod/.test(ua) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const isWeChat = /MicroMessenger/i.test(ua);
+  return isIOS || isWeChat;
+}
+
 async function triggerDownload(dataUrl: string, filename: string): Promise<boolean> {
   try {
     const res = await fetch(dataUrl);
@@ -124,6 +133,10 @@ export async function exportPageImage(
       pixelRatio,
       backgroundColor: '#ffffff',
     });
+
+    if (needsPreviewFallback()) {
+      return { method: 'preview', dataUrl };
+    }
 
     const downloaded = await triggerDownload(dataUrl, filename);
     if (downloaded) {
