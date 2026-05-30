@@ -4,7 +4,7 @@ import { PlayerScoreBar } from './PlayerScoreBar';
 import { SubmitSection } from './SubmitSection';
 
 export function RoundEditModal() {
-  const { editingRoundNumber, cancelEditRound } = useMatch();
+  const { editingRoundNumber, cancelEditRound, displayPlayerOrder } = useMatch();
 
   if (editingRoundNumber == null) return null;
 
@@ -26,8 +26,9 @@ export function RoundEditModal() {
           <p className="round-edit-sheet__hint">
             修改计分标签后点击保存，本局时间不变。
           </p>
-          <PlayerScoreBar player={1} />
-          <PlayerScoreBar player={2} />
+          {displayPlayerOrder.map((player) => (
+            <PlayerScoreBar key={player} player={player} />
+          ))}
           <h4 className="round-edit-sheet__subtitle">本局得分（点击标签可删除）</h4>
           <PendingTags />
           <SubmitSection />

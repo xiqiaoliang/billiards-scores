@@ -1,8 +1,8 @@
 import {
   HEI_JIN_BUTTONS,
-  LET_GAN_BUTTONS,
   PLAYER1_COLOR,
   PLAYER2_COLOR,
+  PLAYER3_COLOR,
   REGULAR_BUTTONS,
   SCORE_LABELS,
 } from '../domain/constants';
@@ -14,6 +14,14 @@ import { PlayerNameEditor } from './PlayerNameEditor';
 interface PlayerScoreBarProps {
   player: PlayerId;
 }
+
+const LET_GAN_ALL_BUTTONS: ScoreItemType[] = [
+  'let_foul',
+  'split',
+  'normal_win',
+  'small_gold',
+];
+const LET_GAN_HEI_JIN_BUTTONS: ScoreItemType[] = ['normal_win', 'small_gold'];
 
 export function PlayerScoreBar({ player }: PlayerScoreBarProps) {
   const {
@@ -27,20 +35,39 @@ export function PlayerScoreBar({ player }: PlayerScoreBarProps) {
     setHeiJin,
     setPlayerName,
   } = useMatch();
-  const color = player === 1 ? PLAYER1_COLOR : PLAYER2_COLOR;
-  const name = player === 1 ? session.player1Name : session.player2Name;
+  const color =
+    player === 1 ? PLAYER1_COLOR : player === 2 ? PLAYER2_COLOR : PLAYER3_COLOR;
+  const name =
+    player === 1
+      ? session.player1Name
+      : player === 2
+        ? session.player2Name
+        : session.player3Name;
   const letGanChecked =
-    player === 1 ? activeSession.letGan.player1 : activeSession.letGan.player2;
+    player === 1
+      ? activeSession.letGan.player1
+      : player === 2
+        ? activeSession.letGan.player2
+        : activeSession.letGan.player3;
   const heiJinChecked =
-    player === 1 ? activeSession.heiJin.player1 : activeSession.heiJin.player2;
+    player === 1
+      ? activeSession.heiJin.player1
+      : player === 2
+        ? activeSession.heiJin.player2
+        : activeSession.heiJin.player3;
   const canEditNames = !tagFormReadOnly && !isEditingRound;
   const golden9Locked = hasGolden9Exclusive(activeSession.pendingTags);
   const scoreButtonsDisabled = tagFormReadOnly || golden9Locked;
-  const buttons: ScoreItemType[] = heiJinChecked
-    ? HEI_JIN_BUTTONS
-    : letGanChecked
-      ? LET_GAN_BUTTONS
+
+  const buttons: ScoreItemType[] = letGanChecked
+    ? heiJinChecked
+      ? LET_GAN_HEI_JIN_BUTTONS
+      : LET_GAN_ALL_BUTTONS
+    : heiJinChecked
+      ? HEI_JIN_BUTTONS
       : REGULAR_BUTTONS;
+
+  const showGolden9Button = !letGanChecked;
 
   return (
     <div className="player-score-bar">
@@ -71,11 +98,11 @@ export function PlayerScoreBar({ player }: PlayerScoreBarProps) {
           黑金
         </label>
         <div className="player-score-bar__win-btns">
-          {!letGanChecked && (
+          {showGolden9Button && (
             <button
               type="button"
               className="player-score-bar__golden9"
-              disabled={tagFormReadOnly}
+              disabled={scoreButtonsDisabled}
               onClick={() => addGolden9Tag(player)}
             >
               {SCORE_LABELS.golden_9}
@@ -100,7 +127,7 @@ export function PlayerScoreBar({ player }: PlayerScoreBarProps) {
             disabled={scoreButtonsDisabled}
             onClick={() => addScoreTag(player, type)}
           >
-            {SCORE_LABELS[type]}
+            {type === 'let_foul' ? SCORE_LABELS.foul : SCORE_LABELS[type]}
           </button>
         ))}
       </div>

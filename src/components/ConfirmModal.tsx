@@ -17,6 +17,39 @@ export function ConfirmModal() {
 
   if (!confirmModal) return null;
 
+  if (confirmModal === 'newMatch') {
+    return (
+      <div className="modal-overlay" role="dialog" aria-modal="true">
+        <div className="modal">
+          <p className="modal__text">{NEW_MATCH_CONFIRM_TEXT}</p>
+          <div className="modal__actions modal__actions--stack">
+            <button
+              type="button"
+              className="modal__btn modal__btn--cancel modal__btn--block"
+              onClick={closeConfirmModal}
+            >
+              取消
+            </button>
+            <button
+              type="button"
+              className="modal__btn modal__btn--block"
+              onClick={() => confirmNewMatch('duel')}
+            >
+              二人追分
+            </button>
+            <button
+              type="button"
+              className="modal__btn modal__btn--confirm modal__btn--block"
+              onClick={() => confirmNewMatch('trio')}
+            >
+              三人追分
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   let text: string;
   let onConfirm: () => void | Promise<void>;
 
@@ -24,10 +57,6 @@ export function ConfirmModal() {
     case 'archive':
       text = ARCHIVE_CONFIRM_TEXT;
       onConfirm = confirmArchive;
-      break;
-    case 'newMatch':
-      text = NEW_MATCH_CONFIRM_TEXT;
-      onConfirm = confirmNewMatch;
       break;
     case 'deleteHistory':
       text = deleteHistoryConfirmText(pendingDeleteIds.length);

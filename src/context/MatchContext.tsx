@@ -28,10 +28,11 @@ import {
   inferLetGanFromTags,
   rebuildRoundRecord,
 } from '../domain/matchUtils';
-import { buildRoundRecord } from '../domain/scoring';
+import { buildRoundRecord, getRoundWinTag, getRoundWinnerPlayer } from '../domain/scoring';
 import type {
   AppView,
   ConfirmModalType,
+  MatchMode,
   MatchRecord,
   PendingTag,
   PlayerId,
@@ -52,10 +53,11 @@ import {
 function createSessionFromMatch(match: MatchRecord): SessionState {
   return {
     pendingTags: [],
-    letGan: { player1: false, player2: false },
-    heiJin: { player1: false, player2: false },
+    letGan: { player1: false, player2: false, player3: false },
+    heiJin: { player1: false, player2: false, player3: false },
     player1Name: match.player1Name,
     player2Name: match.player2Name,
+    player3Name: match.player3Name ?? '',
     submitError: null,
     toastMessage: null,
   };
@@ -99,10 +101,11 @@ type MatchAction =
 
 const initialSession: SessionState = {
   pendingTags: [],
-  letGan: { player1: false, player2: false },
-  heiJin: { player1: false, player2: false },
+  letGan: { player1: false, player2: false, player3: false },
+  heiJin: { player1: false, player2: false, player3: false },
   player1Name: '',
   player2Name: '',
+  player3Name: '',
   submitError: null,
   toastMessage: null,
 };
@@ -153,32 +156,32 @@ function matchReducer(state: MatchState, action: MatchAction): MatchState {
           ...state.session,
           player1Name: action.match.player1Name,
           player2Name: action.match.player2Name,
+          player3Name: action.match.player3Name ?? '',
         },
       };
     case 'SET_LET_GAN': {
-      const key = action.player === 1 ? 'player1' : 'player2';
-      const heiJinKey = action.player === 1 ? 'player1' : 'player2';
+      const key =
+        action.player === 1 ? 'player1' : action.player === 2 ? 'player2' : 'player3';
       return updateTagSession(state, (session) => ({
         ...session,
         letGan: { ...session.letGan, [key]: action.checked },
-        heiJin: action.checked
-          ? { ...session.heiJin, [heiJinKey]: false }
-          : session.heiJin,
       }));
     }
     case 'SET_HEI_JIN': {
-      const key = action.player === 1 ? 'player1' : 'player2';
-      const letGanKey = action.player === 1 ? 'player1' : 'player2';
+      const key =
+        action.player === 1 ? 'player1' : action.player === 2 ? 'player2' : 'player3';
       return updateTagSession(state, (session) => ({
         ...session,
         heiJin: { ...session.heiJin, [key]: action.checked },
-        letGan: action.checked
-          ? { ...session.letGan, [letGanKey]: false }
-          : session.letGan,
       }));
     }
     case 'SET_PLAYER_NAME': {
-      const nameKey = action.player === 1 ? 'player1Name' : 'player2Name';
+      const nameKey =
+        action.player === 1
+          ? 'player1Name'
+          : action.player === 2
+            ? 'player2Name'
+            : 'player3Name';
       return {
         ...state,
         session: { ...state.session, [nameKey]: action.name },
@@ -226,7 +229,7 @@ function matchReducer(state: MatchState, action: MatchAction): MatchState {
         ...state,
         session: {
           ...state.session,
-          letGan: { player1: false, player2: false },
+          letGan: { player1: false, player2: false, player3: false },
         },
       };
     case 'RESET_HEI_JIN':
@@ -234,7 +237,7 @@ function matchReducer(state: MatchState, action: MatchAction): MatchState {
         ...state,
         session: {
           ...state.session,
-          heiJin: { player1: false, player2: false },
+          heiJin: { player1: false, player2: false, player3: false },
         },
       };
     case 'SET_CONFIRM_MODAL':
@@ -267,6 +270,7 @@ function matchReducer(state: MatchState, action: MatchAction): MatchState {
           heiJin: inferHeiJinFromTags(tags),
           player1Name: state.session.player1Name,
           player2Name: state.session.player2Name,
+          player3Name: state.session.player3Name,
           submitError: null,
           toastMessage: null,
         },
@@ -280,6 +284,7 @@ function matchReducer(state: MatchState, action: MatchAction): MatchState {
           ...initialSession,
           player1Name: state.session.player1Name,
           player2Name: state.session.player2Name,
+          player3Name: state.session.player3Name,
         },
       };
     default:
@@ -301,6 +306,8 @@ interface MatchContextValue {
   historyMatches: MatchRecord[];
   historyLoading: boolean;
   isReadOnly: boolean;
+  mode: MatchMode;
+  displayPlayerOrder: PlayerId[];
   addScoreTag: (player: PlayerId, type: ScoreItemType) => void;
   addGolden9Tag: (player: PlayerId) => void;
   removePendingTag: (id: string) => void;
@@ -312,7 +319,7 @@ interface MatchContextValue {
   cancelEditRound: () => void;
   saveEditRound: () => Promise<void>;
   openNewMatchModal: () => void;
-  confirmNewMatch: () => Promise<void>;
+  confirmNewMatch: (mode?: MatchMode) => Promise<void>;
   openArchiveModal: () => void;
   closeConfirmModal: () => void;
   confirmArchive: () => Promise<void>;
@@ -404,6 +411,13 @@ export function MatchProvider({ children }: { children: ReactNode }) {
 
   const activeSession =
     state.editingRoundNumber !== null ? state.editSession : state.session;
+  const mode: MatchMode = state.match?.mode ?? 'duel';
+  const displayPlayerOrder: PlayerId[] =
+    state.match?.currentPlayerOrder && state.match.currentPlayerOrder.length > 0
+      ? state.match.currentPlayerOrder
+      : mode === 'trio'
+        ? [1, 2, 3]
+        : [1, 2];
 
   useEffect(() => {
     if (!activeSession.toastMessage) return;
@@ -427,9 +441,17 @@ export function MatchProvider({ children }: { children: ReactNode }) {
           : state.session;
 
       const isLetGan =
-        player === 1 ? tagSession.letGan.player1 : tagSession.letGan.player2;
+        player === 1
+          ? tagSession.letGan.player1
+          : player === 2
+            ? tagSession.letGan.player2
+            : tagSession.letGan.player3;
       const isHeiJin =
-        player === 1 ? tagSession.heiJin.player1 : tagSession.heiJin.player2;
+        player === 1
+          ? tagSession.heiJin.player1
+          : player === 2
+            ? tagSession.heiJin.player2
+            : tagSession.heiJin.player3;
 
       const resolved = resolveScoreTagAction(
         tagSession.pendingTags,
@@ -437,6 +459,7 @@ export function MatchProvider({ children }: { children: ReactNode }) {
         type,
         isLetGan,
         isHeiJin,
+        mode,
       );
 
       if (resolved.kind === 'noop') {
@@ -470,7 +493,7 @@ export function MatchProvider({ children }: { children: ReactNode }) {
         },
       });
     },
-    [state.match, state.session, state.editSession, state.editingRoundNumber, tagFormReadOnly],
+    [state.match, state.session, state.editSession, state.editingRoundNumber, tagFormReadOnly, mode],
   );
 
   const addGolden9Tag = useCallback(
@@ -483,9 +506,22 @@ export function MatchProvider({ children }: { children: ReactNode }) {
           : state.session;
 
       const isLetGan =
-        player === 1 ? tagSession.letGan.player1 : tagSession.letGan.player2;
+        player === 1
+          ? tagSession.letGan.player1
+          : player === 2
+            ? tagSession.letGan.player2
+            : tagSession.letGan.player3;
       const isHeiJin =
-        player === 1 ? tagSession.heiJin.player1 : tagSession.heiJin.player2;
+        player === 1
+          ? tagSession.heiJin.player1
+          : player === 2
+            ? tagSession.heiJin.player2
+            : tagSession.heiJin.player3;
+
+      if (mode === 'trio' && isLetGan) {
+        dispatch({ type: 'SET_TOAST', message: '黄金9不支持让杆' });
+        return;
+      }
 
       const existingGolden9 = tagSession.pendingTags.find(
         (t) => t.type === 'golden_9',
@@ -512,7 +548,7 @@ export function MatchProvider({ children }: { children: ReactNode }) {
         ],
       });
     },
-    [state.match, state.session, state.editSession, state.editingRoundNumber, tagFormReadOnly],
+    [state.match, state.session, state.editSession, state.editingRoundNumber, tagFormReadOnly, mode],
   );
 
   const removePendingTag = useCallback(
@@ -550,7 +586,7 @@ export function MatchProvider({ children }: { children: ReactNode }) {
   const submitRound = useCallback(async () => {
     if (!state.match || isReadOnly) return;
 
-    const validation = validateSubmit(state.session.pendingTags);
+    const validation = validateSubmit(state.session.pendingTags, state.match.mode);
     if (!validation.ok) {
       if (validation.message) {
         dispatch({ type: 'SET_SUBMIT_ERROR', message: validation.message });
@@ -564,7 +600,43 @@ export function MatchProvider({ children }: { children: ReactNode }) {
       state.match.currentRoundStartTime,
       endTime,
       state.session.pendingTags,
+      state.match.mode,
+      state.match.currentPlayerOrder,
     );
+
+    let nextPlayerOrder = state.match.currentPlayerOrder;
+    if (state.match.mode === 'trio') {
+      const winTag = getRoundWinTag(state.session.pendingTags);
+      const winner = getRoundWinnerPlayer(
+        state.session.pendingTags,
+        'trio',
+        state.match.currentPlayerOrder,
+      );
+      const noSwap = Boolean(winTag && (winTag.isHeiJin || winTag.isLetGan));
+      if (!noSwap && winner !== null && nextPlayerOrder && nextPlayerOrder.length === 3) {
+        const winnerIndex = nextPlayerOrder.indexOf(winner);
+        if (winnerIndex >= 0) {
+          const upstreamIndex = (winnerIndex - 1 + nextPlayerOrder.length) % nextPlayerOrder.length;
+          const upstream = nextPlayerOrder[upstreamIndex];
+          nextPlayerOrder = nextPlayerOrder.map((id) => {
+            if (id === winner) return upstream;
+            if (id === upstream) return winner;
+            return id;
+          });
+        }
+      }
+
+      const opener = winTag?.isHeiJin ? winTag.player : winner;
+      if (opener !== null && opener !== undefined && nextPlayerOrder && nextPlayerOrder.length === 3) {
+        const openerIndex = nextPlayerOrder.indexOf(opener);
+        if (openerIndex > 0) {
+          nextPlayerOrder = [
+            ...nextPlayerOrder.slice(openerIndex),
+            ...nextPlayerOrder.slice(0, openerIndex),
+          ];
+        }
+      }
+    }
 
     const updated = applyPlayerNames(
       {
@@ -572,9 +644,11 @@ export function MatchProvider({ children }: { children: ReactNode }) {
         rounds: [...state.match.rounds, round],
         currentRoundNumber: state.match.currentRoundNumber + 1,
         currentRoundStartTime: endTime,
+        currentPlayerOrder: nextPlayerOrder,
       },
       state.session.player1Name,
       state.session.player2Name,
+      state.session.player3Name,
     );
 
     await saveMatch(updated);
@@ -599,7 +673,7 @@ export function MatchProvider({ children }: { children: ReactNode }) {
   const saveEditRound = useCallback(async () => {
     if (!state.match || state.editingRoundNumber === null) return;
 
-    const validation = validateSubmit(state.editSession.pendingTags);
+    const validation = validateSubmit(state.editSession.pendingTags, state.match.mode);
     if (!validation.ok) {
       if (validation.message) {
         dispatch({ type: 'SET_SUBMIT_ERROR', message: validation.message });
@@ -624,6 +698,7 @@ export function MatchProvider({ children }: { children: ReactNode }) {
       { ...state.match, rounds },
       state.session.player1Name,
       state.session.player2Name,
+      state.session.player3Name,
     );
 
     await saveMatch(updated);
@@ -635,8 +710,8 @@ export function MatchProvider({ children }: { children: ReactNode }) {
     dispatch({ type: 'SET_CONFIRM_MODAL', modal: 'newMatch' });
   }, []);
 
-  const confirmNewMatch = useCallback(async () => {
-    const match = await createAndSaveMatch();
+  const confirmNewMatch = useCallback(async (nextMode: MatchMode = 'duel') => {
+    const match = await createAndSaveMatch(nextMode);
     dispatch({ type: 'INIT_MATCH', match });
     dispatch({ type: 'SET_CONFIRM_MODAL', modal: null });
   }, []);
@@ -657,11 +732,12 @@ export function MatchProvider({ children }: { children: ReactNode }) {
       state.match,
       state.session.player1Name,
       state.session.player2Name,
+      state.session.player3Name,
     );
     const archived = await archiveMatch(withNames);
     dispatch({ type: 'SET_MATCH', match: archived });
     dispatch({ type: 'SET_CONFIRM_MODAL', modal: null });
-  }, [state.match, state.session.player1Name, state.session.player2Name]);
+  }, [state.match, state.session.player1Name, state.session.player2Name, state.session.player3Name]);
 
   const openHistory = useCallback(async () => {
     dispatch({ type: 'SET_VIEW', view: 'history' });
@@ -713,6 +789,7 @@ export function MatchProvider({ children }: { children: ReactNode }) {
         state.match.player1Name,
         state.match.player2Name,
         state.match.createdAt,
+        state.match.player3Name,
       );
       const result = await exportPageImage(root, filename);
 
@@ -774,11 +851,13 @@ export function MatchProvider({ children }: { children: ReactNode }) {
               state.match.player1Name,
               state.match.player2Name,
               state.match.createdAt,
+              state.match.player3Name,
             )
           : buildMatchExportFilename(
               state.match.player1Name,
               state.match.player2Name,
               state.match.createdAt,
+              state.match.player3Name,
             );
       const result = await downloadOrPreviewImage(exportPreviewUrl, filename);
       if (result.method === 'download') {
@@ -817,7 +896,10 @@ export function MatchProvider({ children }: { children: ReactNode }) {
 
       dispatch({
         type: 'SET_TOAST',
-        message: `已导入：${imported.player1Name} vs ${imported.player2Name}`,
+        message:
+          imported.mode === 'trio'
+            ? `已导入：${imported.player1Name}/${imported.player2Name}/${imported.player3Name ?? '选手3'}`
+            : `已导入：${imported.player1Name} vs ${imported.player2Name}`,
       });
       return true;
     },
@@ -887,6 +969,8 @@ export function MatchProvider({ children }: { children: ReactNode }) {
       historyMatches: state.historyMatches,
       historyLoading: state.historyLoading,
       activeSession,
+      mode,
+      displayPlayerOrder,
       editingRoundNumber: state.editingRoundNumber,
       isEditingRound,
       tagFormReadOnly,
@@ -938,6 +1022,8 @@ export function MatchProvider({ children }: { children: ReactNode }) {
       state.editingRoundNumber,
       state.editSession,
       activeSession,
+      mode,
+      displayPlayerOrder,
       isEditingRound,
       tagFormReadOnly,
       isReadOnly,

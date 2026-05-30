@@ -13,7 +13,7 @@ import { SubmitSection } from './components/SubmitSection';
 import { MatchProvider, useMatch } from './context/MatchContext';
 
 function ScoringView() {
-  const { match, exportRootRef } = useMatch();
+  const { match, exportRootRef, displayPlayerOrder } = useMatch();
   if (!match) return null;
 
   return (
@@ -23,8 +23,9 @@ function ScoringView() {
         <OverviewTable match={match} />
         <div className="scroll-content">
         <section className="section">
-          <PlayerScoreBar player={1} />
-          <PlayerScoreBar player={2} />
+          {displayPlayerOrder.map((player) => (
+            <PlayerScoreBar key={player} player={player} />
+          ))}
         </section>
 
         <section className="section">

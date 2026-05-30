@@ -1,5 +1,9 @@
 import { useCallback } from 'react';
-import { PLAYER1_COLOR, PLAYER2_COLOR } from '../domain/constants';
+import {
+  PLAYER1_COLOR,
+  PLAYER2_COLOR,
+  PLAYER3_COLOR,
+} from '../domain/constants';
 import {
   calcRoundWinnerNet,
   formatNetScore,
@@ -8,15 +12,29 @@ import {
   getRoundWinTag,
   getRoundWinnerLabel,
   getRoundWinnerPlayer,
+  getPlayerName,
   sortScoreTags,
 } from '../domain/scoring';
-import type { MatchRecord, RoundRecord } from '../domain/types';
+import type { MatchRecord, PlayerId, RoundRecord } from '../domain/types';
 import { useMatch } from '../context/MatchContext';
 import { useLongPress } from '../hooks/useLongPress';
 import { formatRoundTimeLine } from '../utils/formatTime';
 
 interface RoundHistoryProps {
   match: MatchRecord;
+}
+
+function getPlayerColor(player: PlayerId): string {
+  if (player === 1) return PLAYER1_COLOR;
+  if (player === 2) return PLAYER2_COLOR;
+  return PLAYER3_COLOR;
+}
+
+function getRoundOrder(round: RoundRecord, match: MatchRecord): PlayerId[] {
+  if (round.playerOrder && round.playerOrder.length > 0) {
+    return round.playerOrder;
+  }
+  return match.mode === 'trio' ? [1, 2, 3] : [1, 2];
 }
 
 function RoundHistoryItem({
@@ -38,16 +56,18 @@ function RoundHistoryItem({
 
   const longPressHandlers = useLongPress(handleEdit, { disabled: isArchived });
 
+  const order = getRoundOrder(round, match);
   const winTag = getRoundWinTag(round.tags);
-  const winnerPlayer = getRoundWinnerPlayer(round.tags);
-  const winnerLabel = getRoundWinnerLabel(round.tags, match);
+  const winnerPlayer = getRoundWinnerPlayer(round.tags, match.mode, order);
+  const winnerLabel = getRoundWinnerLabel(round.tags, match, order);
   const winnerColor =
-    winnerPlayer === 1 ? PLAYER1_COLOR : PLAYER2_COLOR;
+    winnerPlayer === 1
+      ? PLAYER1_COLOR
+      : winnerPlayer === 2
+        ? PLAYER2_COLOR
+        : PLAYER3_COLOR;
   const roundNet =
     winnerPlayer != null ? calcRoundWinnerNet(round, winnerPlayer) : 0;
-
-  const p1Summary = formatPlayerRoundSummary(round.tags, 1);
-  const p2Summary = formatPlayerRoundSummary(round.tags, 2);
 
   return (
     <div
@@ -76,9 +96,8 @@ function RoundHistoryItem({
       </div>
       <div className="round-item__tags">
         {sortScoreTags(round.tags).map((tag) => {
-          const name =
-            tag.player === 1 ? match.player1Name : match.player2Name;
-          const color = tag.player === 1 ? PLAYER1_COLOR : PLAYER2_COLOR;
+          const name = getPlayerName(match, tag.player);
+          const color = getPlayerColor(tag.player);
           return (
             <span
               key={tag.id}
@@ -90,13 +109,21 @@ function RoundHistoryItem({
           );
         })}
       </div>
-      <div className="round-item__stats">
-        <span style={{ color: PLAYER1_COLOR }}>
-          {match.player1Name} {p1Summary}
-        </span>
-        <span style={{ color: PLAYER2_COLOR }}>
-          {match.player2Name} {p2Summary}
-        </span>
+      <div className="round-item__stats round-item__stats--stacked">
+        {order.map((player) => (
+          <span key={player} style={{ color: getPlayerColor(player) }}>
+            {getPlayerName(match, player)}{' '}
+            {formatPlayerRoundSummary(round.tags, player, {
+              mode: match.mode,
+              playerOrder: order,
+              playerNames: {
+                1: match.player1Name,
+                2: match.player2Name,
+                3: match.player3Name ?? '选手3',
+              },
+            })}
+          </span>
+        ))}
       </div>
     </div>
   );

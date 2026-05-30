@@ -1,5 +1,11 @@
 import { VALIDATION_MESSAGES, WIN_TYPES } from './constants';
-import type { PendingTag, PlayerId, ScoreItemType, ValidationResult } from './types';
+import type {
+  MatchMode,
+  PendingTag,
+  PlayerId,
+  ScoreItemType,
+  ValidationResult,
+} from './types';
 
 function countTypeGlobal(tags: PendingTag[], type: ScoreItemType): number {
   return tags.filter((t) => t.type === type).length;
@@ -21,21 +27,56 @@ export type ScoreTagAction =
   | { kind: 'noop' }
   | { kind: 'error'; message: string };
 
+function validateTrioAddTag(
+  _pendingTags: PendingTag[],
+  _player: PlayerId,
+  type: ScoreItemType,
+  isLetGan: boolean,
+): ValidationResult {
+  if (isLetGan && type === 'break_foul') {
+    return { ok: false, message: '让杆状态不可选择开球犯规' };
+  }
+  if (isLetGan && type === 'foul') {
+    return { ok: false, message: '让杆状态请使用让杆犯规' };
+  }
+  if (!isLetGan && type === 'let_foul') {
+    return { ok: false, message: '让杆犯规仅在让杆状态可选' };
+  }
+  if (isLetGan && type === 'golden_9') {
+    return { ok: false, message: '黄金9不支持让杆' };
+  }
+
+  return { ok: true };
+}
+
 export function resolveScoreTagAction(
   pendingTags: PendingTag[],
   player: PlayerId,
   type: ScoreItemType,
   isLetGan: boolean,
   isHeiJin: boolean,
+  mode: MatchMode = 'duel',
 ): ScoreTagAction {
   const tag: ScoreTagPayload = { player, type, isLetGan, isHeiJin };
 
-  if (hasGolden9Exclusive(pendingTags)) {
+  if (hasGolden9Exclusive(pendingTags) && type !== 'golden_9') {
     return { kind: 'error', message: VALIDATION_MESSAGES.golden9Exclusive };
   }
 
-  if (type === 'foul') {
-    const result = validateAddTag(pendingTags, player, type);
+  if (mode === 'trio') {
+    const trioValidation = validateTrioAddTag(
+      pendingTags,
+      player,
+      type,
+      isLetGan,
+    );
+    if (!trioValidation.ok) {
+      return { kind: 'error', message: trioValidation.message };
+    }
+  }
+
+  if (type === 'foul' || type === 'let_foul') {
+    const result = validateAddTag(pendingTags, player, type, mode, isLetGan);
     if (!result.ok) {
       return { kind: 'error', message: result.message };
     }
@@ -71,9 +112,19 @@ export function validateAddTag(
   pendingTags: PendingTag[],
   _player: PlayerId,
   type: ScoreItemType,
+  mode: MatchMode = 'duel',
+  isLetGan = false,
 ): ValidationResult {
-  if (hasGolden9Exclusive(pendingTags)) {
+  if (hasGolden9Exclusive(pendingTags) && type !== 'golden_9') {
     return { ok: false, message: VALIDATION_MESSAGES.golden9Exclusive };
+  }
+
+  if (!isLetGan && type === 'let_foul') {
+    return { ok: false, message: '让杆犯规仅在让杆状态可选' };
+  }
+
+  if (mode === 'trio') {
+    return validateTrioAddTag(pendingTags, _player, type, isLetGan);
   }
 
   if (type === 'break_foul') {
@@ -97,7 +148,10 @@ export function validateAddTag(
   return { ok: true };
 }
 
-export function validateSubmit(pendingTags: PendingTag[]): ValidationResult {
+export function validateSubmit(
+  pendingTags: PendingTag[],
+  mode: MatchMode = 'duel',
+): ValidationResult {
   if (pendingTags.length === 0) {
     return { ok: false, message: '' };
   }
@@ -117,6 +171,20 @@ export function validateSubmit(pendingTags: PendingTag[]): ValidationResult {
   const winCount = pendingTags.filter((t) => WIN_TYPES.includes(t.type)).length;
   if (winCount > 1) {
     return { ok: false, message: VALIDATION_MESSAGES.winGlobal };
+  }
+
+  if (mode === 'trio') {
+    for (const tag of pendingTags) {
+      if (tag.isLetGan && tag.type === 'break_foul') {
+        return { ok: false, message: '让杆状态不可选择开球犯规' };
+      }
+      if (tag.isLetGan && tag.type === 'golden_9') {
+        return { ok: false, message: '黄金9不支持让杆' };
+      }
+      if (!tag.isLetGan && tag.type === 'let_foul') {
+        return { ok: false, message: '让杆犯规仅在让杆状态可选' };
+      }
+    }
   }
 
   return { ok: true };

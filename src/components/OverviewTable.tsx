@@ -1,4 +1,8 @@
-import { PLAYER1_COLOR, PLAYER2_COLOR } from '../domain/constants';
+import {
+  PLAYER1_COLOR,
+  PLAYER2_COLOR,
+  PLAYER3_COLOR,
+} from '../domain/constants';
 import { calcMatchOverview, formatNetScore } from '../domain/scoring';
 import type { MatchRecord } from '../domain/types';
 import { useMatch } from '../context/MatchContext';
@@ -11,7 +15,7 @@ interface OverviewTableProps {
 export function OverviewTable({ match }: OverviewTableProps) {
   const { session, isReadOnly, setPlayerName } = useMatch();
   const overview = calcMatchOverview(match);
-  const { player1, player2, netScore } = overview;
+  const { player1, player2, player3 } = overview;
 
   const rows = [
     {
@@ -26,6 +30,16 @@ export function OverviewTable({ match }: OverviewTableProps) {
       color: PLAYER2_COLOR,
       stats: player2,
     },
+    ...(match.mode === 'trio' && player3
+      ? [
+          {
+            player: 3 as const,
+            name: session.player3Name,
+            color: PLAYER3_COLOR,
+            stats: player3,
+          },
+        ]
+      : []),
   ];
 
   return (
@@ -63,11 +77,9 @@ export function OverviewTable({ match }: OverviewTableProps) {
               <td>{row.stats.smallGoldCount}</td>
               <td>{row.stats.bigGoldCount}</td>
               <td>{row.stats.extraScore}</td>
-              <td>{row.stats.totalScore}</td>
+              <td>{100 + row.stats.totalScore}</td>
               <td>
-                {formatNetScore(
-                  row.player === 1 ? netScore : -netScore,
-                )}
+                {formatNetScore(row.stats.totalScore)}
               </td>
             </tr>
           ))}

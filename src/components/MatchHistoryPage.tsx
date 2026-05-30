@@ -173,7 +173,7 @@ export function MatchHistoryPage() {
                       });
                     }}
                     onClick={(e) => e.stopPropagation()}
-                    aria-label={`选择 ${m.player1Name} vs ${m.player2Name}`}
+                    aria-label={`选择 ${m.mode === 'trio' ? `${m.player1Name}/${m.player2Name}/${m.player3Name ?? '选手3'}` : `${m.player1Name} vs ${m.player2Name}`}`}
                   />
                   <button
                     type="button"
@@ -185,7 +185,9 @@ export function MatchHistoryPage() {
                   >
                     <div className="history-card__top">
                       <span className="history-card__players">
-                        {m.player1Name} vs {m.player2Name}
+                        {m.mode === 'trio'
+                          ? `${m.player1Name} / ${m.player2Name} / ${m.player3Name ?? '选手3'}`
+                          : `${m.player1Name} vs ${m.player2Name}`}
                       </span>
                       <span
                         className={`history-card__status history-card__status--${m.status}`}
@@ -200,15 +202,14 @@ export function MatchHistoryPage() {
                       <span style={{ color: 'var(--color-player1)' }}>
                         {m.player1Name} {overview.player1.totalScore}
                       </span>
-                      <span className="history-card__vs">
-                        净分{' '}
-                        {overview.netScore > 0
-                          ? `+${overview.netScore}`
-                          : overview.netScore}
-                      </span>
                       <span style={{ color: 'var(--color-player2)' }}>
                         {m.player2Name} {overview.player2.totalScore}
                       </span>
+                      {m.mode === 'trio' && overview.player3 && (
+                        <span style={{ color: 'var(--color-player3)' }}>
+                          {m.player3Name ?? '选手3'} {overview.player3.totalScore}
+                        </span>
+                      )}
                     </div>
                   </button>
                   <button

@@ -1,10 +1,10 @@
-import { PLAYER1_COLOR, PLAYER2_COLOR } from '../domain/constants';
+import { PLAYER1_COLOR, PLAYER2_COLOR, PLAYER3_COLOR } from '../domain/constants';
 import { formatTagLabel, sortScoreTags } from '../domain/scoring';
 import { useMatch } from '../context/MatchContext';
 
 export function PendingTags() {
   const { activeSession, tagFormReadOnly, removePendingTag } = useMatch();
-  const { pendingTags, player1Name, player2Name } = activeSession;
+  const { pendingTags, player1Name, player2Name, player3Name } = activeSession;
 
   return (
     <div className="pending-tags">
@@ -13,8 +13,18 @@ export function PendingTags() {
       ) : (
         <div className="pending-tags__list">
           {sortScoreTags(pendingTags).map((tag) => {
-            const name = tag.player === 1 ? player1Name : player2Name;
-            const color = tag.player === 1 ? PLAYER1_COLOR : PLAYER2_COLOR;
+            const name =
+              tag.player === 1
+                ? player1Name
+                : tag.player === 2
+                  ? player2Name
+                  : player3Name;
+            const color =
+              tag.player === 1
+                ? PLAYER1_COLOR
+                : tag.player === 2
+                  ? PLAYER2_COLOR
+                  : PLAYER3_COLOR;
             return (
               <span
                 key={tag.id}

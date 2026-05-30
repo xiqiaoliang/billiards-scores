@@ -157,9 +157,13 @@ export function buildMatchExportFilename(
   player1Name: string,
   player2Name: string,
   createdAt: number,
+  player3Name?: string,
 ): string {
   const datePart = formatDateForFilename(createdAt);
-  const base = `台球记分-${player1Name}vs${player2Name}-${datePart}.png`;
+  const names = player3Name
+    ? `${player1Name}vs${player2Name}vs${player3Name}`
+    : `${player1Name}vs${player2Name}`;
+  const base = `台球记分-${names}-${datePart}.png`;
   return sanitizeFilename(base);
 }
 

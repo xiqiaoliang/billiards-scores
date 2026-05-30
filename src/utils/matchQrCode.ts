@@ -22,6 +22,7 @@ const STAT_SEP = ',';
 
 const SCORE_TYPES: ScoreItemType[] = [
   'foul',
+  'let_foul',
   'break_foul',
   'split',
   'normal_win',
@@ -45,7 +46,7 @@ function isValidScoreType(value: unknown): value is ScoreItemType {
 function normalizePendingTag(value: unknown): PendingTag | null {
   if (!isObject(value)) return null;
   if (typeof value.id !== 'string') return null;
-  if (value.player !== 1 && value.player !== 2) return null;
+  if (value.player !== 1 && value.player !== 2 && value.player !== 3) return null;
   if (!isValidScoreType(value.type)) return null;
 
   return {
@@ -80,14 +81,35 @@ function normalizeRoundRecord(value: unknown): RoundRecord | null {
     if (typeof stats.roundTotal !== 'number') return null;
   }
 
+  let player3: RoundRecord['player3'];
+  if (isObject(value.player3)) {
+    if (
+      typeof value.player3.baseScore !== 'number'
+      || typeof value.player3.extraScore !== 'number'
+      || typeof value.player3.roundTotal !== 'number'
+    ) {
+      return null;
+    }
+    player3 = {
+      baseScore: value.player3.baseScore,
+      extraScore: value.player3.extraScore,
+      roundTotal: value.player3.roundTotal,
+    };
+  }
+
   return {
     roundNumber: value.roundNumber,
     startTime: value.startTime,
     endTime: value.endTime,
     durationMs: value.durationMs,
+    playerOrder:
+      Array.isArray(value.playerOrder) && value.playerOrder.every((p) => p === 1 || p === 2 || p === 3)
+        ? value.playerOrder
+        : [1, 2],
     tags,
     player1: value.player1 as RoundRecord['player1'],
     player2: value.player2 as RoundRecord['player2'],
+    player3,
   };
 }
 
@@ -98,6 +120,7 @@ function normalizeMatchRecord(value: unknown): MatchRecord | null {
   if (typeof value.createdAt !== 'number') return null;
   if (typeof value.player1Name !== 'string') return null;
   if (typeof value.player2Name !== 'string') return null;
+  if (value.player3Name != null && typeof value.player3Name !== 'string') return null;
   if (!Array.isArray(value.rounds)) return null;
   if (typeof value.currentRoundNumber !== 'number') return null;
   if (typeof value.currentRoundStartTime !== 'number') return null;
@@ -111,10 +134,18 @@ function normalizeMatchRecord(value: unknown): MatchRecord | null {
 
   return {
     id: value.id,
+    mode: value.mode === 'trio' ? 'trio' : 'duel',
     status: value.status,
     createdAt: value.createdAt,
     player1Name: value.player1Name,
     player2Name: value.player2Name,
+    player3Name: typeof value.player3Name === 'string' ? value.player3Name : undefined,
+    currentPlayerOrder:
+      Array.isArray(value.currentPlayerOrder) && value.currentPlayerOrder.every((p) => p === 1 || p === 2 || p === 3)
+        ? value.currentPlayerOrder
+        : value.mode === 'trio'
+          ? [1, 2, 3]
+          : [1, 2],
     rounds,
     currentRoundNumber: value.currentRoundNumber,
     currentRoundStartTime: value.currentRoundStartTime,
@@ -139,7 +170,7 @@ function decodeTag(raw: string): PendingTag | null {
   const [idRaw, playerRaw, typeRaw, letGanRaw, heiJinRaw] = parts;
   const player = Number(playerRaw);
   const typeIndex = Number(typeRaw);
-  if ((player !== 1 && player !== 2) || !Number.isInteger(typeIndex)) return null;
+  if ((player !== 1 && player !== 2 && player !== 3) || !Number.isInteger(typeIndex)) return null;
   const type = SCORE_TYPES[typeIndex];
   if (!type) return null;
   try {
@@ -191,6 +222,7 @@ function decodeRound(raw: string): RoundRecord | null {
     startTime,
     endTime,
     durationMs,
+    playerOrder: [1, 2],
     tags: tags as PendingTag[],
     player1,
     player2,
@@ -330,7 +362,7 @@ function decodeRoundV3(raw: string, roundNumber: number, createdAt: number): Rou
   return buildRoundRecord(roundNumber, startTime, endTime, tags);
 }
 
-function encodeMatchCompactV3(match: MatchRecord): string {
+export function encodeMatchCompactV3(match: MatchRecord): string {
   const statusCode = match.status === 'archived' ? '1' : '0';
   const syncCode = match.syncStatus === 'pending' ? '1' : match.syncStatus === 'synced' ? '2' : '0';
   const names = `${encodeText(match.player1Name)}.${encodeText(match.player2Name)}`;
@@ -373,6 +405,7 @@ function decodeMatchCompactV3(raw: string): MatchRecord | null {
   const syncCode = meta[1] ?? '0';
 
   return normalizeMatchRecord({
+    mode: 'duel',
     id: `qr-${createdAtRaw}`,
     status: meta[0] === '1' ? 'archived' : 'in_progress',
     createdAt,
@@ -385,15 +418,25 @@ function decodeMatchCompactV3(raw: string): MatchRecord | null {
   });
 }
 
+function decodeMatchJson(raw: string): MatchRecord | null {
+  try {
+    const text = decodeText(raw);
+    return normalizeMatchRecord(JSON.parse(text));
+  } catch {
+    return null;
+  }
+}
+
 export function encodeMatchToQrPayload(match: MatchRecord): string {
   const normalized = normalizeMatchRecord(match) ?? match;
-  return `${QR_PREFIX}${encodeMatchCompactV3(normalized)}`;
+  return `${QR_PREFIX}${encodeText(JSON.stringify(normalized))}`;
 }
 
 export function decodeMatchFromQrPayload(payload: string): MatchRecord | null {
   const normalized = payload.trim().replace(/\s/g, '');
   if (normalized.startsWith(QR_PREFIX_V3)) {
-    return decodeMatchCompactV3(normalized.slice(QR_PREFIX_V3.length));
+    const raw = normalized.slice(QR_PREFIX_V3.length);
+    return decodeMatchJson(raw) ?? decodeMatchCompactV3(raw);
   }
   if (normalized.startsWith(QR_PREFIX_V2)) {
     return decodeMatchCompact(normalized.slice(QR_PREFIX_V2.length));
@@ -502,7 +545,7 @@ export async function generateMatchQrShareImage(
   ctx.font = 'bold 22px sans-serif';
   ctx.textAlign = 'center';
   ctx.fillText(
-    `${match.player1Name} vs ${match.player2Name}`,
+    `${match.player1Name}${match.mode === 'trio' ? `/${match.player2Name}/${match.player3Name ?? '选手3'}` : ` vs ${match.player2Name}`}`,
     canvasWidth / 2,
     padding + 24,
   );
@@ -615,7 +658,8 @@ export async function decodeQrFromImageFile(file: File): Promise<string | null> 
 
 function isQrPayloadText(text: string): boolean {
   const normalized = text.trim().replace(/\s/g, '');
-  return normalized.startsWith(QR_PREFIX_V3) || normalized.startsWith(QR_PREFIX_V2);
+  return normalized.startsWith(QR_PREFIX_V3)
+    || normalized.startsWith(QR_PREFIX_V2);
 }
 
 export async function decodeFromImportFile(file: File): Promise<string | null> {
@@ -653,10 +697,14 @@ export function buildMatchQrFilename(
   player1Name: string,
   player2Name: string,
   createdAt: number,
+  player3Name?: string,
 ): string {
   const datePart = formatDateForFilename(createdAt);
+  const names = player3Name
+    ? `${player1Name}vs${player2Name}vs${player3Name}`
+    : `${player1Name}vs${player2Name}`;
   return sanitizeFilename(
-    `台球记分二维码-${player1Name}vs${player2Name}-${datePart}.png`,
+    `台球记分二维码-${names}-${datePart}.png`,
   );
 }
 

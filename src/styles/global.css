@@ -1,6 +1,7 @@
 :root {
   --color-player1: #1677ff;
   --color-player2: #f53f3f;
+  --color-player3: #d48806;
   --color-text: #1d2129;
   --color-text-secondary: #86909c;
   --color-border: #e5e6eb;
@@ -518,6 +519,12 @@ body {
   line-height: 1.5;
 }
 
+.round-item__stats--stacked {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
 .round-item__stats > span:last-child {
   text-align: right;
 }
@@ -611,6 +618,10 @@ body {
   justify-content: flex-end;
 }
 
+.modal__actions--stack {
+  flex-direction: column;
+}
+
 .modal__btn {
   min-height: var(--touch-min);
   padding: 0 20px;
@@ -618,6 +629,10 @@ body {
   border-radius: var(--radius-md);
   font-size: 15px;
   cursor: pointer;
+}
+
+.modal__btn--block {
+  width: 100%;
 }
 
 .modal__btn--cancel {

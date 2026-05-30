@@ -2,9 +2,11 @@ import type { ScoreItemType } from './types';
 
 export const PLAYER1_COLOR = '#1677FF';
 export const PLAYER2_COLOR = '#F53F3F';
+export const PLAYER3_COLOR = '#D48806';
 
 export const DEFAULT_PLAYER1_NAME = '吴';
 export const DEFAULT_PLAYER2_NAME = '席';
+export const DEFAULT_PLAYER3_NAME = '王';
 
 /** 犯规类标签给对手加分，犯规者本人不计分 */
 export const FOUL_OPPONENT_BONUS = 1;
@@ -13,6 +15,7 @@ export const FOUL_TYPES: ScoreItemType[] = ['foul', 'break_foul'];
 
 export const SCORE_VALUES: Record<ScoreItemType, number> = {
   foul: 0,
+  let_foul: 0,
   break_foul: 0,
   split: 2,
   normal_win: 4,
@@ -23,6 +26,7 @@ export const SCORE_VALUES: Record<ScoreItemType, number> = {
 
 export const SCORE_LABELS: Record<ScoreItemType, string> = {
   foul: '犯规',
+  let_foul: '让杆犯规',
   break_foul: '开球犯规',
   split: '分球',
   normal_win: '普胜',
@@ -40,6 +44,7 @@ export const REGULAR_BUTTONS: ScoreItemType[] = [
 ];
 
 export const LET_GAN_BUTTONS: ScoreItemType[] = [
+  'let_foul',
   'split',
   'normal_win',
   'small_gold',
@@ -71,11 +76,12 @@ export const WIN_TYPES: ScoreItemType[] = [
 export const TAG_DISPLAY_ORDER: Record<ScoreItemType, number> = {
   break_foul: 0,
   foul: 1,
-  split: 2,
-  normal_win: 3,
-  golden_9: 4,
-  small_gold: 5,
-  big_gold: 6,
+  let_foul: 2,
+  split: 3,
+  normal_win: 4,
+  golden_9: 5,
+  small_gold: 6,
+  big_gold: 7,
 };
 
 export const LIMITED_ONCE_TYPES: ScoreItemType[] = ['break_foul', 'split'];

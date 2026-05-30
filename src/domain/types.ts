@@ -1,9 +1,12 @@
 export type MatchStatus = 'in_progress' | 'archived';
 
+export type MatchMode = 'duel' | 'trio';
+
 export type SyncStatus = 'local' | 'pending' | 'synced';
 
 export type ScoreItemType =
   | 'foul'
+  | 'let_foul'
   | 'break_foul'
   | 'split'
   | 'normal_win'
@@ -11,7 +14,7 @@ export type ScoreItemType =
   | 'small_gold'
   | 'big_gold';
 
-export type PlayerId = 1 | 2;
+export type PlayerId = 1 | 2 | 3;
 
 export interface PendingTag {
   id: string;
@@ -32,17 +35,22 @@ export interface RoundRecord {
   startTime: number;
   endTime: number;
   durationMs: number;
+  playerOrder: PlayerId[];
   tags: PendingTag[];
   player1: RoundPlayerStats;
   player2: RoundPlayerStats;
+  player3?: RoundPlayerStats;
 }
 
 export interface MatchRecord {
   id: string;
+  mode: MatchMode;
   status: MatchStatus;
   createdAt: number;
   player1Name: string;
   player2Name: string;
+  player3Name?: string;
+  currentPlayerOrder?: PlayerId[];
   rounds: RoundRecord[];
   currentRoundNumber: number;
   currentRoundStartTime: number;
@@ -62,12 +70,14 @@ export interface PlayerOverviewStats {
 export interface MatchOverview {
   player1: PlayerOverviewStats;
   player2: PlayerOverviewStats;
+  player3?: PlayerOverviewStats;
   netScore: number;
 }
 
 export interface LetGanState {
   player1: boolean;
   player2: boolean;
+  player3: boolean;
 }
 
 export interface SessionState {
@@ -76,6 +86,7 @@ export interface SessionState {
   heiJin: LetGanState;
   player1Name: string;
   player2Name: string;
+  player3Name: string;
   submitError: string | null;
   toastMessage: string | null;
 }

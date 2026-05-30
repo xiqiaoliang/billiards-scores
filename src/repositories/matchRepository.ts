@@ -1,21 +1,28 @@
 import { db } from '../db/database';
 import {
+  DEFAULT_PLAYER3_NAME,
   DEFAULT_PLAYER1_NAME,
   DEFAULT_PLAYER2_NAME,
 } from '../domain/constants';
-import type { MatchRecord } from '../domain/types';
+import type { MatchMode, MatchRecord } from '../domain/types';
 
 function generateId(): string {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 }
 
-export function createMatchRecord(now = Date.now()): MatchRecord {
+export function createMatchRecord(
+  now = Date.now(),
+  mode: MatchMode = 'duel',
+): MatchRecord {
   return {
     id: generateId(),
+    mode,
     status: 'in_progress',
     createdAt: now,
     player1Name: DEFAULT_PLAYER1_NAME,
     player2Name: DEFAULT_PLAYER2_NAME,
+    player3Name: mode === 'trio' ? DEFAULT_PLAYER3_NAME : undefined,
+    currentPlayerOrder: mode === 'trio' ? [1, 2, 3] : [1, 2],
     rounds: [],
     currentRoundNumber: 1,
     currentRoundStartTime: now,
@@ -36,8 +43,8 @@ export async function saveMatch(match: MatchRecord): Promise<void> {
   await db.matches.put(match);
 }
 
-export async function createAndSaveMatch(): Promise<MatchRecord> {
-  const match = createMatchRecord();
+export async function createAndSaveMatch(mode: MatchMode = 'duel'): Promise<MatchRecord> {
+  const match = createMatchRecord(Date.now(), mode);
   await saveMatch(match);
   return match;
 }

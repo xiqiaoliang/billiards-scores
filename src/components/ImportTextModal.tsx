@@ -23,13 +23,13 @@ export function ImportTextModal({ onImport, onClose }: ImportTextModalProps) {
     >
       <div className="import-text">
         <p className="import-text__hint">
-          粘贴以 bs:v1: 开头的比赛数据（从二维码解码软件复制）
+          粘贴以 bs:v3:/bs:v2: 开头的比赛数据（从二维码解码软件复制）
         </p>
         <textarea
           className="import-text__input"
           value={text}
           onChange={(e) => setText(e.target.value)}
-          placeholder="bs:v1:..."
+          placeholder="bs:v3:..."
           rows={6}
           autoFocus
         />
