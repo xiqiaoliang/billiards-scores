@@ -5,6 +5,7 @@ import { formatDateTime } from '../utils/formatTime';
 import { ConfirmModal } from './ConfirmModal';
 import { GlobalToast } from './GlobalToast';
 import { ImportTextModal } from './ImportTextModal';
+import { QrErrorDetailModal } from './QrErrorDetailModal';
 import { QrScanModal } from './QrScanModal';
 
 export function MatchHistoryPage() {
@@ -228,6 +229,7 @@ export function MatchHistoryPage() {
         )}
       </div>
       <ConfirmModal />
+      <QrErrorDetailModal />
       <GlobalToast />
       {scanOpen && (
         <QrScanModal

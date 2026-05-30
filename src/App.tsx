@@ -6,6 +6,7 @@ import { OverviewTable } from './components/OverviewTable';
 import { PageHeader } from './components/PageHeader';
 import { PendingTags } from './components/PendingTags';
 import { PlayerScoreBar } from './components/PlayerScoreBar';
+import { QrErrorDetailModal } from './components/QrErrorDetailModal';
 import { RoundEditModal } from './components/RoundEditModal';
 import { RoundHistory } from './components/RoundHistory';
 import { SubmitSection } from './components/SubmitSection';
@@ -39,6 +40,7 @@ function ScoringView() {
       </div>
       <ConfirmModal />
       <ExportPreviewModal />
+      <QrErrorDetailModal />
       <GlobalToast />
       <RoundEditModal />
     </div>

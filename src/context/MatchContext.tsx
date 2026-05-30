@@ -325,6 +325,7 @@ interface MatchContextValue {
   exportRootRef: RefObject<HTMLDivElement | null>;
   exporting: boolean;
   exportPreviewUrl: string | null;
+  exportPreviewKind: 'image' | 'qr' | null;
   qrErrorDetail: string | null;
   exportMatchAsImage: () => Promise<void>;
   exportMatchAsQrCode: () => Promise<void>;
@@ -373,6 +374,7 @@ export function MatchProvider({ children }: { children: ReactNode }) {
   const exportRootRef = useRef<HTMLDivElement | null>(null);
   const [exporting, setExporting] = useState(false);
   const [exportPreviewUrl, setExportPreviewUrl] = useState<string | null>(null);
+  const [exportPreviewKind, setExportPreviewKind] = useState<'image' | 'qr' | null>(null);
   const [qrErrorDetail, setQrErrorDetail] = useState<string | null>(null);
 
   useEffect(() => {
@@ -692,6 +694,7 @@ export function MatchProvider({ children }: { children: ReactNode }) {
 
   const closeExportPreview = useCallback(() => {
     setExportPreviewUrl(null);
+    setExportPreviewKind(null);
   }, []);
 
   const closeQrErrorDetail = useCallback(() => {
@@ -715,6 +718,7 @@ export function MatchProvider({ children }: { children: ReactNode }) {
 
       if (result.method === 'preview') {
         setExportPreviewUrl(result.dataUrl);
+        setExportPreviewKind('image');
         dispatch({
           type: 'SET_TOAST',
           message: '请长按图片保存到相册',
@@ -743,6 +747,7 @@ export function MatchProvider({ children }: { children: ReactNode }) {
     try {
       const dataUrl = await generateMatchQrShareImage(state.match);
       setExportPreviewUrl(dataUrl);
+      setExportPreviewKind('qr');
       dispatch({
         type: 'SET_TOAST',
         message: '已生成二维码预览，请点击下方按钮下载',
@@ -759,18 +764,28 @@ export function MatchProvider({ children }: { children: ReactNode }) {
   }, [state.match, exporting]);
 
   const downloadExportPreview = useCallback(async () => {
-    if (!state.match || !exportPreviewUrl || exporting) return;
+    if (!state.match || !exportPreviewUrl || !exportPreviewKind || exporting) return;
 
     setExporting(true);
     try {
-      const filename = buildMatchQrFilename(
-        state.match.player1Name,
-        state.match.player2Name,
-        state.match.createdAt,
-      );
+      const filename =
+        exportPreviewKind === 'qr'
+          ? buildMatchQrFilename(
+              state.match.player1Name,
+              state.match.player2Name,
+              state.match.createdAt,
+            )
+          : buildMatchExportFilename(
+              state.match.player1Name,
+              state.match.player2Name,
+              state.match.createdAt,
+            );
       const result = await downloadOrPreviewImage(exportPreviewUrl, filename);
       if (result.method === 'download') {
-        dispatch({ type: 'SET_TOAST', message: '二维码已保存' });
+        dispatch({
+          type: 'SET_TOAST',
+          message: exportPreviewKind === 'qr' ? '二维码已保存' : '图片已保存',
+        });
       } else {
         dispatch({ type: 'SET_TOAST', message: '当前环境不支持自动下载，请长按保存' });
       }
@@ -779,7 +794,7 @@ export function MatchProvider({ children }: { children: ReactNode }) {
     } finally {
       setExporting(false);
     }
-  }, [state.match, exportPreviewUrl, exporting]);
+  }, [state.match, exportPreviewUrl, exportPreviewKind, exporting]);
 
   const importMatchFromQrPayload = useCallback(
     async (payload: string): Promise<boolean> => {
@@ -900,6 +915,7 @@ export function MatchProvider({ children }: { children: ReactNode }) {
       exportRootRef,
       exporting,
       exportPreviewUrl,
+      exportPreviewKind,
       qrErrorDetail,
       exportMatchAsImage,
       exportMatchAsQrCode,
@@ -948,6 +964,7 @@ export function MatchProvider({ children }: { children: ReactNode }) {
       confirmDeleteHistory,
       exporting,
       exportPreviewUrl,
+      exportPreviewKind,
       qrErrorDetail,
       exportMatchAsImage,
       exportMatchAsQrCode,
