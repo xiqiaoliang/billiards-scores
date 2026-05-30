@@ -19,17 +19,6 @@ const LONG_PRESS_DELAY_MS = 400;
 const CANCEL_PRESS_MOVE_PX = 40;
 const MOUSE_DRAG_START_MOVE_PX = 4;
 
-function movePlayer(order: PlayerId[], from: PlayerId, to: PlayerId): PlayerId[] {
-  if (from === to) return order;
-  const fromIndex = order.indexOf(from);
-  const toIndex = order.indexOf(to);
-  if (fromIndex < 0 || toIndex < 0) return order;
-  const next = [...order];
-  next.splice(fromIndex, 1);
-  next.splice(toIndex, 0, from);
-  return next;
-}
-
 function sameOrder(a: PlayerId[], b: PlayerId[]): boolean {
   return a.length === b.length && a.every((value, index) => value === b[index]);
 }
@@ -51,6 +40,19 @@ export function PlayerScoreBarList({
   const lastTopPositionsRef = useRef<Partial<Record<PlayerId, number>>>({});
 
   useLayoutEffect(() => {
+    if (draggingPlayer !== null) {
+      const nextTopPositions: Partial<Record<PlayerId, number>> = {};
+      visualOrder.forEach((player) => {
+        const el = itemRefs.current[player];
+        if (!el) return;
+        nextTopPositions[player] = el.getBoundingClientRect().top;
+        el.style.transition = '';
+        el.style.transform = '';
+      });
+      lastTopPositionsRef.current = nextTopPositions;
+      return;
+    }
+
     const nextTopPositions: Partial<Record<PlayerId, number>> = {};
 
     visualOrder.forEach((player) => {
@@ -59,13 +61,6 @@ export function PlayerScoreBarList({
       const prevTop = lastTopPositionsRef.current[player];
       const nextTop = el.getBoundingClientRect().top;
       nextTopPositions[player] = nextTop;
-
-      // Keep the actively dragged card stable; only animate other cards.
-      if (player === draggingPlayer) {
-        el.style.transition = '';
-        el.style.transform = '';
-        return;
-      }
 
       if (prevTop === undefined) return;
       const deltaY = prevTop - nextTop;
@@ -119,27 +114,31 @@ export function PlayerScoreBarList({
   const applyMoveByClientY = useCallback(
     (clientY: number) => {
       if (draggingPlayer === null) return;
-      const nearest = visualOrder.reduce<{ player: PlayerId | null; distance: number }>(
-        (acc, player) => {
-          const el = itemRefs.current[player];
-          if (!el) return acc;
-          const rect = el.getBoundingClientRect();
-          const centerY = rect.top + rect.height / 2;
-          const distance = Math.abs(clientY - centerY);
-          if (distance < acc.distance) {
-            return { player, distance };
-          }
-          return acc;
-        },
-        { player: null, distance: Number.POSITIVE_INFINITY },
-      ).player;
+      const candidates = visualOrder.filter((player) => player !== draggingPlayer);
+      if (candidates.length === 0) return;
 
-      // Avoid reordering repeatedly against the same target, which can cause oscillation/jitter.
-      if (!nearest || nearest === draggingPlayer || nearest === dropTargetPlayer) return;
-      setDropTargetPlayer(nearest);
-      setVisualOrder((current) => movePlayer(current, draggingPlayer, nearest));
+      let insertIndex = candidates.length;
+      for (let i = 0; i < candidates.length; i += 1) {
+        const candidate = candidates[i];
+        const el = itemRefs.current[candidate];
+        if (!el) continue;
+        const rect = el.getBoundingClientRect();
+        const centerY = rect.top + rect.height / 2;
+        if (clientY < centerY) {
+          insertIndex = i;
+          break;
+        }
+      }
+
+      const nextOrder = [...candidates];
+      nextOrder.splice(insertIndex, 0, draggingPlayer);
+      if (sameOrder(nextOrder, visualOrder)) return;
+
+      const nextDropTarget = candidates[insertIndex] ?? candidates[candidates.length - 1] ?? null;
+      setDropTargetPlayer(nextDropTarget);
+      setVisualOrder(nextOrder);
     },
-    [draggingPlayer, dropTargetPlayer, visualOrder],
+    [draggingPlayer, visualOrder],
   );
 
   const handlePointerDown = useCallback(
@@ -168,6 +167,7 @@ export function PlayerScoreBarList({
     (event: React.MouseEvent<HTMLDivElement>, player: PlayerId) => {
       if (!canReorder || draggingPlayer !== null) return;
       if (event.button !== 0) return;
+      event.preventDefault();
       resetGesture();
       pointerTypeRef.current = 'mouse';
       pressedPlayerRef.current = player;
