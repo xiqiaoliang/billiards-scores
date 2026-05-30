@@ -60,6 +60,13 @@ export function PlayerScoreBarList({
       const nextTop = el.getBoundingClientRect().top;
       nextTopPositions[player] = nextTop;
 
+      // Keep the actively dragged card stable; only animate other cards.
+      if (player === draggingPlayer) {
+        el.style.transition = '';
+        el.style.transform = '';
+        return;
+      }
+
       if (prevTop === undefined) return;
       const deltaY = prevTop - nextTop;
       if (Math.abs(deltaY) < 1) return;
@@ -73,7 +80,7 @@ export function PlayerScoreBarList({
     });
 
     lastTopPositionsRef.current = nextTopPositions;
-  }, [visualOrder]);
+  }, [visualOrder, draggingPlayer]);
 
   useEffect(() => {
     if (draggingPlayer !== null) return;
@@ -127,11 +134,12 @@ export function PlayerScoreBarList({
         { player: null, distance: Number.POSITIVE_INFINITY },
       ).player;
 
-      if (!nearest || nearest === draggingPlayer) return;
+      // Avoid reordering repeatedly against the same target, which can cause oscillation/jitter.
+      if (!nearest || nearest === draggingPlayer || nearest === dropTargetPlayer) return;
       setDropTargetPlayer(nearest);
       setVisualOrder((current) => movePlayer(current, draggingPlayer, nearest));
     },
-    [draggingPlayer, visualOrder],
+    [draggingPlayer, dropTargetPlayer, visualOrder],
   );
 
   const handlePointerDown = useCallback(
