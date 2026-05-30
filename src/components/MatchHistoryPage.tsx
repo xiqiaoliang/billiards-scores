@@ -1,8 +1,11 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { calcMatchOverview } from '../domain/scoring';
 import { useMatch } from '../context/MatchContext';
 import { formatDateTime } from '../utils/formatTime';
 import { ConfirmModal } from './ConfirmModal';
+import { GlobalToast } from './GlobalToast';
+import { ImportTextModal } from './ImportTextModal';
+import { QrScanModal } from './QrScanModal';
 
 export function MatchHistoryPage() {
   const {
@@ -12,9 +15,15 @@ export function MatchHistoryPage() {
     closeHistory,
     loadMatchFromHistory,
     requestDeleteHistory,
+    importMatchFromQrPayload,
+    importMatchFromQrImage,
+    importMatchFromQrText,
   } = useMatch();
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [scanOpen, setScanOpen] = useState(false);
+  const [pasteOpen, setPasteOpen] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setSelectedIds((prev) => {
@@ -25,42 +34,29 @@ export function MatchHistoryPage() {
     });
   }, [historyMatches]);
 
-  const allSelected = useMemo(
-    () =>
-      historyMatches.length > 0 &&
-      selectedIds.size === historyMatches.length,
-    [historyMatches.length, selectedIds.size],
-  );
+  const allSelected =
+    historyMatches.length > 0 &&
+    selectedIds.size === historyMatches.length;
 
-  const toggleSelect = (id: string) => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
+  const handleImportClick = () => {
+    fileInputRef.current?.click();
   };
 
-  const toggleSelectAll = () => {
-    if (allSelected) {
-      setSelectedIds(new Set());
-    } else {
-      setSelectedIds(new Set(historyMatches.map((m) => m.id)));
-    }
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    await importMatchFromQrImage(file);
   };
 
-  const handleDeleteOne = (id: string, e: { stopPropagation: () => void }) => {
-    e.stopPropagation();
-    requestDeleteHistory([id]);
+  const handleScanResult = async (text: string) => {
+    setScanOpen(false);
+    await importMatchFromQrPayload(text);
   };
 
-  const handleBatchDelete = () => {
-    requestDeleteHistory([...selectedIds]);
-  };
-
-  const handleOpen = (id: string) => {
-    loadMatchFromHistory(id);
-    setSelectedIds(new Set());
+  const handlePasteImport = async (text: string) => {
+    setPasteOpen(false);
+    await importMatchFromQrText(text);
   };
 
   return (
@@ -70,7 +66,54 @@ export function MatchHistoryPage() {
           返回
         </button>
         <h1 className="history-page__title">历史比赛</h1>
-        <span className="history-page__spacer" />
+        <div className="history-page__actions">
+          <button
+            type="button"
+            className="btn-text"
+            onClick={handleImportClick}
+          >
+            导入
+          </button>
+          <button
+            type="button"
+            className="btn-text"
+            onClick={() => setPasteOpen(true)}
+          >
+            粘贴
+          </button>
+          <button
+            type="button"
+            className="btn-icon"
+            onClick={() => setScanOpen(true)}
+            aria-label="扫码导入"
+            title="扫码导入"
+          >
+            <svg
+              className="btn-icon__svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <rect x="3" y="3" width="7" height="7" />
+              <rect x="14" y="3" width="7" height="7" />
+              <rect x="3" y="14" width="7" height="7" />
+              <path d="M14 14h.01M18 14h.01M14 18h.01M18 18h.01M22 14h.01M22 18h.01" />
+            </svg>
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*,.txt,text/plain"
+            className="sr-only"
+            onChange={handleFileChange}
+            aria-hidden="true"
+            tabIndex={-1}
+          />
+        </div>
       </header>
 
       {historyMatches.length > 0 && !historyLoading && (
@@ -79,7 +122,13 @@ export function MatchHistoryPage() {
             <input
               type="checkbox"
               checked={allSelected}
-              onChange={toggleSelectAll}
+              onChange={() => {
+                if (allSelected) {
+                  setSelectedIds(new Set());
+                } else {
+                  setSelectedIds(new Set(historyMatches.map((m) => m.id)));
+                }
+              }}
             />
             全选
           </label>
@@ -87,7 +136,7 @@ export function MatchHistoryPage() {
             type="button"
             className="btn-text btn-text--danger"
             disabled={selectedIds.size === 0}
-            onClick={handleBatchDelete}
+            onClick={() => requestDeleteHistory([...selectedIds])}
           >
             批量删除{selectedIds.size > 0 ? `(${selectedIds.size})` : ''}
           </button>
@@ -114,14 +163,24 @@ export function MatchHistoryPage() {
                     type="checkbox"
                     className="history-card__checkbox"
                     checked={isSelected}
-                    onChange={() => toggleSelect(m.id)}
+                    onChange={() => {
+                      setSelectedIds((prev) => {
+                        const next = new Set(prev);
+                        if (next.has(m.id)) next.delete(m.id);
+                        else next.add(m.id);
+                        return next;
+                      });
+                    }}
                     onClick={(e) => e.stopPropagation()}
                     aria-label={`选择 ${m.player1Name} vs ${m.player2Name}`}
                   />
                   <button
                     type="button"
                     className={`history-card${isCurrent ? ' history-card--active' : ''}`}
-                    onClick={() => handleOpen(m.id)}
+                    onClick={() => {
+                      loadMatchFromHistory(m.id);
+                      setSelectedIds(new Set());
+                    }}
                   >
                     <div className="history-card__top">
                       <span className="history-card__players">
@@ -154,7 +213,10 @@ export function MatchHistoryPage() {
                   <button
                     type="button"
                     className="history-card__delete"
-                    onClick={(e) => handleDeleteOne(m.id, e)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      requestDeleteHistory([m.id]);
+                    }}
                     aria-label="删除"
                   >
                     删除
@@ -166,6 +228,19 @@ export function MatchHistoryPage() {
         )}
       </div>
       <ConfirmModal />
+      <GlobalToast />
+      {scanOpen && (
+        <QrScanModal
+          onScan={handleScanResult}
+          onClose={() => setScanOpen(false)}
+        />
+      )}
+      {pasteOpen && (
+        <ImportTextModal
+          onImport={handlePasteImport}
+          onClose={() => setPasteOpen(false)}
+        />
+      )}
     </div>
   );
 }

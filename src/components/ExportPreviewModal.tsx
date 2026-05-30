@@ -1,7 +1,7 @@
 import { useMatch } from '../context/MatchContext';
 
 export function ExportPreviewModal() {
-  const { exportPreviewUrl, closeExportPreview } = useMatch();
+  const { exportPreviewUrl, closeExportPreview, downloadExportPreview, exporting } = useMatch();
 
   if (!exportPreviewUrl) return null;
 
@@ -13,7 +13,7 @@ export function ExportPreviewModal() {
       aria-label="导出图片预览"
     >
       <div className="export-preview">
-        <p className="export-preview__hint">长按图片保存到相册</p>
+        <p className="export-preview__hint">先预览二维码，再点击下方按钮下载</p>
         <div className="export-preview__scroll">
           <img
             src={exportPreviewUrl}
@@ -21,6 +21,14 @@ export function ExportPreviewModal() {
             className="export-preview__img"
           />
         </div>
+        <button
+          type="button"
+          className="export-preview__download"
+          onClick={downloadExportPreview}
+          disabled={exporting}
+        >
+          {exporting ? '下载中...' : '下载二维码'}
+        </button>
         <button
           type="button"
           className="export-preview__close"

@@ -10,10 +10,18 @@ import {
   type ReactNode,
   type RefObject,
 } from 'react';
+import { downloadOrPreviewImage } from '../utils/downloadImage';
 import {
   buildMatchExportFilename,
   exportPageImage,
 } from '../utils/exportPageImage';
+import {
+  buildMatchQrFilename,
+  decodeMatchFromQrPayload,
+  decodeFromImportFile,
+  generateMatchQrShareImage,
+  prepareImportedMatch,
+} from '../utils/matchQrCode';
 import {
   applyPlayerNames,
   inferHeiJinFromTags,
@@ -318,6 +326,11 @@ interface MatchContextValue {
   exporting: boolean;
   exportPreviewUrl: string | null;
   exportMatchAsImage: () => Promise<void>;
+  exportMatchAsQrCode: () => Promise<void>;
+  downloadExportPreview: () => Promise<void>;
+  importMatchFromQrPayload: (payload: string) => Promise<boolean>;
+  importMatchFromQrImage: (file: File) => Promise<boolean>;
+  importMatchFromQrText: (text: string) => Promise<boolean>;
   closeExportPreview: () => void;
 }
 
@@ -689,6 +702,108 @@ export function MatchProvider({ children }: { children: ReactNode }) {
     }
   }, [state.match, exporting]);
 
+  const exportMatchAsQrCode = useCallback(async () => {
+    if (!state.match || state.match.status !== 'archived' || exporting) return;
+
+    setExporting(true);
+    try {
+      const dataUrl = await generateMatchQrShareImage(state.match);
+      setExportPreviewUrl(dataUrl);
+      dispatch({
+        type: 'SET_TOAST',
+        message: '已生成二维码预览，请点击下方按钮下载',
+      });
+    } catch {
+      dispatch({
+        type: 'SET_TOAST',
+        message: '二维码生成失败，请重试',
+      });
+    } finally {
+      setExporting(false);
+    }
+  }, [state.match, exporting]);
+
+  const downloadExportPreview = useCallback(async () => {
+    if (!state.match || !exportPreviewUrl || exporting) return;
+
+    setExporting(true);
+    try {
+      const filename = buildMatchQrFilename(
+        state.match.player1Name,
+        state.match.player2Name,
+        state.match.createdAt,
+      );
+      const result = await downloadOrPreviewImage(exportPreviewUrl, filename);
+      if (result.method === 'download') {
+        dispatch({ type: 'SET_TOAST', message: '二维码已保存' });
+      } else {
+        dispatch({ type: 'SET_TOAST', message: '当前环境不支持自动下载，请长按保存' });
+      }
+    } catch {
+      dispatch({ type: 'SET_TOAST', message: '下载失败，请重试' });
+    } finally {
+      setExporting(false);
+    }
+  }, [state.match, exportPreviewUrl, exporting]);
+
+  const importMatchFromQrPayload = useCallback(
+    async (payload: string): Promise<boolean> => {
+      const decoded = decodeMatchFromQrPayload(payload);
+      if (!decoded) {
+        dispatch({
+          type: 'SET_TOAST',
+          message: '无法识别二维码，请确认是台球记分二维码',
+        });
+        return false;
+      }
+
+      const imported = prepareImportedMatch(decoded);
+      await saveMatch(imported);
+
+      if (state.view === 'history') {
+        const matches = await getAllMatches();
+        dispatch({ type: 'SET_HISTORY_MATCHES', matches });
+      }
+
+      dispatch({
+        type: 'SET_TOAST',
+        message: `已导入：${imported.player1Name} vs ${imported.player2Name}`,
+      });
+      return true;
+    },
+    [state.view],
+  );
+
+  const importMatchFromQrImage = useCallback(
+    async (file: File): Promise<boolean> => {
+      try {
+        const payload = await decodeFromImportFile(file);
+        if (!payload) {
+          dispatch({
+            type: 'SET_TOAST',
+            message: '图片中未找到有效二维码，可尝试「粘贴」直接导入数据',
+          });
+          return false;
+        }
+        return importMatchFromQrPayload(payload);
+      } catch {
+        dispatch({
+          type: 'SET_TOAST',
+          message: '无法读取文件，请重试',
+        });
+        return false;
+      }
+    },
+    [importMatchFromQrPayload],
+  );
+
+  const importMatchFromQrText = useCallback(
+    async (text: string): Promise<boolean> => {
+      return importMatchFromQrPayload(text);
+    },
+    [importMatchFromQrPayload],
+  );
+
   const confirmDeleteHistory = useCallback(async () => {
     const ids = state.pendingDeleteIds;
     if (ids.length === 0) return;
@@ -751,6 +866,11 @@ export function MatchProvider({ children }: { children: ReactNode }) {
       exporting,
       exportPreviewUrl,
       exportMatchAsImage,
+      exportMatchAsQrCode,
+      downloadExportPreview,
+      importMatchFromQrPayload,
+      importMatchFromQrImage,
+      importMatchFromQrText,
       closeExportPreview,
     }),
     [
@@ -792,6 +912,11 @@ export function MatchProvider({ children }: { children: ReactNode }) {
       exporting,
       exportPreviewUrl,
       exportMatchAsImage,
+      exportMatchAsQrCode,
+      downloadExportPreview,
+      importMatchFromQrPayload,
+      importMatchFromQrImage,
+      importMatchFromQrText,
       closeExportPreview,
     ],
   );

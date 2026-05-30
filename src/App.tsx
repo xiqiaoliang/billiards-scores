@@ -1,5 +1,6 @@
 import { ConfirmModal } from './components/ConfirmModal';
 import { ExportPreviewModal } from './components/ExportPreviewModal';
+import { GlobalToast } from './components/GlobalToast';
 import { MatchHistoryPage } from './components/MatchHistoryPage';
 import { OverviewTable } from './components/OverviewTable';
 import { PageHeader } from './components/PageHeader';
@@ -38,6 +39,7 @@ function ScoringView() {
       </div>
       <ConfirmModal />
       <ExportPreviewModal />
+      <GlobalToast />
       <RoundEditModal />
     </div>
   );
