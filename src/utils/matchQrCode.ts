@@ -1,6 +1,7 @@
 import { Html5Qrcode } from 'html5-qrcode';
 import QRCode from 'qrcode';
 import jsQR from 'jsqr';
+import { buildRoundRecord } from '../domain/scoring';
 import type {
   MatchRecord,
   MatchStatus,
@@ -10,7 +11,9 @@ import type {
   ScoreItemType,
 } from '../domain/types';
 
-const QR_PREFIX = 'bs:v2:';
+const QR_PREFIX_V2 = 'bs:v2:';
+const QR_PREFIX_V3 = 'bs:v3:';
+const QR_PREFIX = QR_PREFIX_V3;
 const FIELD_SEP = '|';
 const LIST_SEP = '~';
 const ROUND_SEP = '^';
@@ -126,22 +129,8 @@ export function validateMatchRecord(data: unknown): data is MatchRecord {
   return normalizeMatchRecord(data) !== null;
 }
 
-function encodePart(value: string | number | boolean): string {
-  return encodeURIComponent(String(value));
-}
-
 function decodePart(value: string): string {
   return decodeURIComponent(value);
-}
-
-function encodeTag(tag: PendingTag): string {
-  return [
-    encodePart(tag.id),
-    String(tag.player),
-    String(SCORE_TYPES.indexOf(tag.type)),
-    tag.isLetGan ? '1' : '0',
-    tag.isHeiJin ? '1' : '0',
-  ].join(STAT_SEP);
 }
 
 function decodeTag(raw: string): PendingTag | null {
@@ -164,21 +153,6 @@ function decodeTag(raw: string): PendingTag | null {
   } catch {
     return null;
   }
-}
-
-function encodeRound(round: RoundRecord): string {
-  const tagText = round.tags.map(encodeTag).join(TAG_SEP);
-  const p1 = [round.player1.baseScore, round.player1.extraScore, round.player1.roundTotal].join(STAT_SEP);
-  const p2 = [round.player2.baseScore, round.player2.extraScore, round.player2.roundTotal].join(STAT_SEP);
-  return [
-    round.roundNumber,
-    round.startTime,
-    round.endTime,
-    round.durationMs,
-    tagText,
-    p1,
-    p2,
-  ].map(encodePart).join(ROUND_SEP);
 }
 
 function decodeRound(raw: string): RoundRecord | null {
@@ -223,23 +197,6 @@ function decodeRound(raw: string): RoundRecord | null {
   };
 }
 
-function encodeMatchCompact(match: MatchRecord): string {
-  const statusCode = match.status === 'archived' ? '1' : '0';
-  const syncCode = match.syncStatus === 'pending' ? '1' : match.syncStatus === 'synced' ? '2' : '0';
-  const roundsText = match.rounds.map(encodeRound).join(LIST_SEP);
-
-  return [
-    encodePart(match.id),
-    statusCode,
-    String(match.createdAt),
-    encodePart(match.player1Name),
-    encodePart(match.player2Name),
-    encodePart(roundsText),
-    String(match.currentRoundNumber),
-    String(match.currentRoundStartTime),
-    syncCode,
-  ].join(FIELD_SEP);
-}
 
 function decodeMatchCompact(raw: string): MatchRecord | null {
   const fields = raw.split(FIELD_SEP);
@@ -284,17 +241,164 @@ function decodeMatchCompact(raw: string): MatchRecord | null {
   });
 }
 
+function toBase36(value: number): string {
+  return Math.max(0, Math.round(value)).toString(36);
+}
+
+function fromBase36(value: string): number {
+  if (!value || !/^[0-9a-z]+$/i.test(value)) return NaN;
+  return Number.parseInt(value, 36);
+}
+
+function encodeText(value: string): string {
+  const bytes = new TextEncoder().encode(value);
+  let binary = '';
+  for (const byte of bytes) {
+    binary += String.fromCharCode(byte);
+  }
+  return btoa(binary)
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/g, '');
+}
+
+function decodeText(value: string): string {
+  const padded = value.replace(/-/g, '+').replace(/_/g, '/').padEnd(
+    Math.ceil(value.length / 4) * 4,
+    '=',
+  );
+  const binary = atob(padded);
+  const bytes = Uint8Array.from(binary, (ch) => ch.charCodeAt(0));
+  return new TextDecoder().decode(bytes);
+}
+
+function encodeTagV3(tag: PendingTag): string {
+  const typeIndex = SCORE_TYPES.indexOf(tag.type);
+  const flags = (tag.isLetGan ? 1 : 0) | (tag.isHeiJin ? 2 : 0);
+  return `${tag.player}${typeIndex.toString(36)}${flags.toString(36)}`;
+}
+
+function decodeTagsV3(raw: string, roundNumber: number): PendingTag[] | null {
+  if (raw.length % 3 !== 0) return null;
+
+  const tags: PendingTag[] = [];
+  for (let i = 0; i < raw.length; i += 3) {
+    const player = Number(raw[i]);
+    const typeIndex = fromBase36(raw[i + 1]);
+    const flags = fromBase36(raw[i + 2]);
+    const type = SCORE_TYPES[typeIndex];
+
+    if ((player !== 1 && player !== 2) || !type || !Number.isFinite(flags)) {
+      return null;
+    }
+
+    tags.push({
+      id: `qr-${roundNumber}-${tags.length + 1}`,
+      player: player as PlayerId,
+      type,
+      isLetGan: (flags & 1) !== 0,
+      isHeiJin: (flags & 2) !== 0,
+    });
+  }
+
+  return tags;
+}
+
+function encodeRoundV3(round: RoundRecord, createdAt: number): string {
+  const startOffsetSec = Math.max(0, (round.startTime - createdAt) / 1000);
+  const durationSec = Math.max(0, (round.durationMs || round.endTime - round.startTime) / 1000);
+  return [
+    toBase36(startOffsetSec),
+    toBase36(durationSec),
+    round.tags.map(encodeTagV3).join(''),
+  ].join('.');
+}
+
+function decodeRoundV3(raw: string, roundNumber: number, createdAt: number): RoundRecord | null {
+  const parts = raw.split('.');
+  if (parts.length !== 3) return null;
+
+  const startOffsetSec = fromBase36(parts[0]);
+  const durationSec = fromBase36(parts[1]);
+  if (![startOffsetSec, durationSec].every(Number.isFinite)) return null;
+
+  const tags = decodeTagsV3(parts[2], roundNumber);
+  if (!tags) return null;
+
+  const startTime = createdAt + startOffsetSec * 1000;
+  const endTime = startTime + durationSec * 1000;
+  return buildRoundRecord(roundNumber, startTime, endTime, tags);
+}
+
+function encodeMatchCompactV3(match: MatchRecord): string {
+  const statusCode = match.status === 'archived' ? '1' : '0';
+  const syncCode = match.syncStatus === 'pending' ? '1' : match.syncStatus === 'synced' ? '2' : '0';
+  const names = `${encodeText(match.player1Name)}.${encodeText(match.player2Name)}`;
+  const rounds = match.rounds.map((round) => encodeRoundV3(round, match.createdAt)).join(';');
+
+  return [
+    `${statusCode}${syncCode}`,
+    toBase36(match.createdAt),
+    names,
+    rounds,
+  ].join('|');
+}
+
+function decodeMatchCompactV3(raw: string): MatchRecord | null {
+  const fields = raw.split('|');
+  if (fields.length !== 4) return null;
+
+  const [meta, createdAtRaw, namesRaw, roundsRaw] = fields;
+  const createdAt = fromBase36(createdAtRaw);
+  if (!Number.isFinite(createdAt)) return null;
+
+  const names = namesRaw.split('.');
+  if (names.length !== 2) return null;
+
+  let player1Name: string;
+  let player2Name: string;
+  try {
+    player1Name = decodeText(names[0]);
+    player2Name = decodeText(names[1]);
+  } catch {
+    return null;
+  }
+
+  const rounds = roundsRaw
+    ? roundsRaw.split(';').map((round, index) => decodeRoundV3(round, index + 1, createdAt))
+    : [];
+  if (rounds.some((round) => !round)) return null;
+
+  const lastRound = rounds.length > 0 ? (rounds[rounds.length - 1] as RoundRecord) : null;
+  const syncCode = meta[1] ?? '0';
+
+  return normalizeMatchRecord({
+    id: `qr-${createdAtRaw}`,
+    status: meta[0] === '1' ? 'archived' : 'in_progress',
+    createdAt,
+    player1Name,
+    player2Name,
+    rounds: rounds as RoundRecord[],
+    currentRoundNumber: rounds.length + 1,
+    currentRoundStartTime: lastRound?.endTime ?? createdAt,
+    syncStatus: syncCode === '1' ? 'pending' : syncCode === '2' ? 'synced' : 'local',
+  });
+}
+
 export function encodeMatchToQrPayload(match: MatchRecord): string {
   const normalized = normalizeMatchRecord(match) ?? match;
-  return `${QR_PREFIX}${encodeMatchCompact(normalized)}`;
+  return `${QR_PREFIX}${encodeMatchCompactV3(normalized)}`;
 }
 
 export function decodeMatchFromQrPayload(payload: string): MatchRecord | null {
   const normalized = payload.trim().replace(/\s/g, '');
-  if (!normalized.startsWith(QR_PREFIX)) return null;
-
-  const raw = normalized.slice(QR_PREFIX.length);
-  return decodeMatchCompact(raw);
+  if (normalized.startsWith(QR_PREFIX_V3)) {
+    return decodeMatchCompactV3(normalized.slice(QR_PREFIX_V3.length));
+  }
+  if (normalized.startsWith(QR_PREFIX_V2)) {
+    return decodeMatchCompact(normalized.slice(QR_PREFIX_V2.length));
+  }
+  return null;
 }
 
 function generateId(): string {
@@ -341,7 +445,7 @@ export async function generateMatchQrDataUrl(
   size = 640,
 ): Promise<string> {
   const payload = encodeMatchToQrPayload(match);
-
+  console.log(payload);
   // iPhone Safari is prone to canvas/toDataURL failures in qrcode's PNG renderer.
   // SVG avoids the canvas path and keeps the same payload scannable.
   if (isIOSSafariBrowser()) {
@@ -509,10 +613,15 @@ export async function decodeQrFromImageFile(file: File): Promise<string | null> 
   return decodeWithJsQRMultiScale(img);
 }
 
+function isQrPayloadText(text: string): boolean {
+  const normalized = text.trim().replace(/\s/g, '');
+  return normalized.startsWith(QR_PREFIX_V3) || normalized.startsWith(QR_PREFIX_V2);
+}
+
 export async function decodeFromImportFile(file: File): Promise<string | null> {
   if (isTextImportFile(file)) {
     const text = await readFileAsText(file);
-    if (text.trim().replace(/\s/g, '').startsWith(QR_PREFIX)) {
+    if (isQrPayloadText(text)) {
       return text;
     }
   }
