@@ -15,6 +15,8 @@ interface PlayerScoreBarListProps {
 }
 
 const LONG_PRESS_DELAY_MS = 400;
+const CANCEL_PRESS_MOVE_PX = 40;
+const MOUSE_DRAG_START_MOVE_PX = 4;
 
 function movePlayer(order: PlayerId[], from: PlayerId, to: PlayerId): PlayerId[] {
   if (from === to) return order;
@@ -38,8 +40,13 @@ export function PlayerScoreBarList({
 }: PlayerScoreBarListProps) {
   const [visualOrder, setVisualOrder] = useState<PlayerId[]>(players);
   const [draggingPlayer, setDraggingPlayer] = useState<PlayerId | null>(null);
+  const [dropTargetPlayer, setDropTargetPlayer] = useState<PlayerId | null>(null);
   const pressTimerRef = useRef<number | null>(null);
   const itemRefs = useRef<Partial<Record<PlayerId, HTMLDivElement | null>>>({});
+  const pointerIdRef = useRef<number | null>(null);
+  const pointerTypeRef = useRef<string | null>(null);
+  const pressedPlayerRef = useRef<PlayerId | null>(null);
+  const pressStartRef = useRef<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
     if (draggingPlayer !== null) return;
@@ -59,94 +66,237 @@ export function PlayerScoreBarList({
       onReorder(visualOrder);
     }
     setDraggingPlayer(null);
+    setDropTargetPlayer(null);
   }, [draggingPlayer, visualOrder, players, onReorder]);
 
-  const handlePointerDown = useCallback(
-    (event: ReactPointerEvent<HTMLDivElement>, player: PlayerId) => {
-      if (!canReorder || draggingPlayer !== null) return;
-      if (event.pointerType === 'mouse' && event.button !== 0) return;
+  const resetGesture = useCallback(() => {
+    clearPressTimer();
+    pointerIdRef.current = null;
+    pointerTypeRef.current = null;
+    pressedPlayerRef.current = null;
+    pressStartRef.current = null;
+  }, [clearPressTimer]);
 
-      event.currentTarget.setPointerCapture(event.pointerId);
-      clearPressTimer();
-      pressTimerRef.current = window.setTimeout(() => {
-        setDraggingPlayer(player);
-      }, LONG_PRESS_DELAY_MS);
-    },
-    [canReorder, draggingPlayer, clearPressTimer],
-  );
+  const beginDragging = useCallback((player: PlayerId) => {
+    setDraggingPlayer(player);
+    setDropTargetPlayer(player);
+  }, []);
 
-  const handlePointerMove = useCallback(
-    (event: ReactPointerEvent<HTMLDivElement>) => {
+  const applyMoveByClientY = useCallback(
+    (clientY: number) => {
       if (draggingPlayer === null) return;
-      event.preventDefault();
+      const nearest = visualOrder.reduce<{ player: PlayerId | null; distance: number }>(
+        (acc, player) => {
+          const el = itemRefs.current[player];
+          if (!el) return acc;
+          const rect = el.getBoundingClientRect();
+          const centerY = rect.top + rect.height / 2;
+          const distance = Math.abs(clientY - centerY);
+          if (distance < acc.distance) {
+            return { player, distance };
+          }
+          return acc;
+        },
+        { player: null, distance: Number.POSITIVE_INFINITY },
+      ).player;
 
-      const hovered = visualOrder.find((player) => {
-        const el = itemRefs.current[player];
-        if (!el) return false;
-        const rect = el.getBoundingClientRect();
-        return event.clientY >= rect.top && event.clientY <= rect.bottom;
-      });
-      if (!hovered || hovered === draggingPlayer) return;
-
-      setVisualOrder((current) => movePlayer(current, draggingPlayer, hovered));
+      if (!nearest || nearest === draggingPlayer) return;
+      setDropTargetPlayer(nearest);
+      setVisualOrder((current) => movePlayer(current, draggingPlayer, nearest));
     },
     [draggingPlayer, visualOrder],
   );
 
+  const handlePointerDown = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>, player: PlayerId) => {
+      if (!canReorder || draggingPlayer !== null) return;
+      if (event.pointerType === 'mouse') {
+        return;
+      }
+
+      event.currentTarget.setPointerCapture(event.pointerId);
+      resetGesture();
+      pointerIdRef.current = event.pointerId;
+      pointerTypeRef.current = event.pointerType;
+      pressedPlayerRef.current = player;
+      pressStartRef.current = { x: event.clientX, y: event.clientY };
+      pressTimerRef.current = window.setTimeout(() => {
+        const activePlayer = pressedPlayerRef.current;
+        if (activePlayer === null) return;
+        beginDragging(activePlayer);
+      }, LONG_PRESS_DELAY_MS);
+    },
+    [canReorder, draggingPlayer, resetGesture, beginDragging],
+  );
+
+  const handleMouseDown = useCallback(
+    (event: React.MouseEvent<HTMLDivElement>, player: PlayerId) => {
+      if (!canReorder || draggingPlayer !== null) return;
+      if (event.button !== 0) return;
+      resetGesture();
+      pointerTypeRef.current = 'mouse';
+      pressedPlayerRef.current = player;
+      pressStartRef.current = { x: event.clientX, y: event.clientY };
+    },
+    [canReorder, draggingPlayer, resetGesture],
+  );
+
   const handlePointerUp = useCallback(() => {
-    clearPressTimer();
-    commitDrag();
-  }, [clearPressTimer, commitDrag]);
+    if (draggingPlayer !== null) {
+      commitDrag();
+    }
+    resetGesture();
+  }, [draggingPlayer, commitDrag, resetGesture]);
 
   const handlePointerCancel = useCallback(() => {
-    clearPressTimer();
     if (draggingPlayer !== null) {
       setDraggingPlayer(null);
+      setDropTargetPlayer(null);
       setVisualOrder(players);
     }
-  }, [clearPressTimer, draggingPlayer, players]);
+    resetGesture();
+  }, [draggingPlayer, players, resetGesture]);
+
+  const handlePointerMoveOnItem = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      if (pointerIdRef.current !== event.pointerId) return;
+      if (draggingPlayer === null) {
+        if (pointerTypeRef.current !== 'mouse') return;
+        const start = pressStartRef.current;
+        const activePlayer = pressedPlayerRef.current;
+        if (!start || activePlayer === null) return;
+        const moved =
+          Math.hypot(event.clientX - start.x, event.clientY - start.y) >
+          MOUSE_DRAG_START_MOVE_PX;
+        if (!moved) return;
+        beginDragging(activePlayer);
+        return;
+      }
+      event.preventDefault();
+      applyMoveByClientY(event.clientY);
+    },
+    [draggingPlayer, beginDragging, applyMoveByClientY],
+  );
 
   useEffect(() => {
-    if (draggingPlayer === null) return;
-    const handleGlobalPointerUp = () => {
-      clearPressTimer();
-      commitDrag();
+    const handleGlobalPointerMove = (event: PointerEvent) => {
+      if (pointerIdRef.current !== event.pointerId) return;
+
+      if (draggingPlayer === null) {
+        const start = pressStartRef.current;
+        const activePlayer = pressedPlayerRef.current;
+        if (!start) return;
+        const dx = event.clientX - start.x;
+        const dy = event.clientY - start.y;
+        const movedDistance = Math.hypot(dx, dy);
+        if (pointerTypeRef.current === 'mouse') {
+          if (activePlayer !== null && movedDistance > MOUSE_DRAG_START_MOVE_PX) {
+            beginDragging(activePlayer);
+          }
+          return;
+        }
+
+        if (movedDistance > CANCEL_PRESS_MOVE_PX) {
+          resetGesture();
+        }
+        return;
+      }
+
+      event.preventDefault();
+      applyMoveByClientY(event.clientY);
     };
+
+    const handleGlobalPointerUp = (event: PointerEvent) => {
+      if (pointerIdRef.current !== null && pointerIdRef.current !== event.pointerId) {
+        return;
+      }
+      if (draggingPlayer !== null) {
+        commitDrag();
+      }
+      resetGesture();
+    };
+
+    window.addEventListener('pointermove', handleGlobalPointerMove, { passive: false });
     window.addEventListener('pointerup', handleGlobalPointerUp);
     window.addEventListener('pointercancel', handleGlobalPointerUp);
     return () => {
+      window.removeEventListener('pointermove', handleGlobalPointerMove);
       window.removeEventListener('pointerup', handleGlobalPointerUp);
       window.removeEventListener('pointercancel', handleGlobalPointerUp);
     };
-  }, [draggingPlayer, clearPressTimer, commitDrag]);
+  }, [draggingPlayer, beginDragging, commitDrag, resetGesture, applyMoveByClientY]);
+
+  useEffect(() => {
+    const handleMouseMove = (event: MouseEvent) => {
+      if (pointerTypeRef.current !== 'mouse') return;
+      const start = pressStartRef.current;
+      const activePlayer = pressedPlayerRef.current;
+      if (!start || activePlayer === null) return;
+
+      const movedDistance = Math.hypot(event.clientX - start.x, event.clientY - start.y);
+      if (draggingPlayer === null) {
+        if (movedDistance <= MOUSE_DRAG_START_MOVE_PX) return;
+        beginDragging(activePlayer);
+        return;
+      }
+
+      event.preventDefault();
+      applyMoveByClientY(event.clientY);
+    };
+
+    const handleMouseUp = () => {
+      if (pointerTypeRef.current !== 'mouse') return;
+      if (draggingPlayer !== null) {
+        commitDrag();
+      }
+      resetGesture();
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [draggingPlayer, beginDragging, commitDrag, resetGesture, applyMoveByClientY]);
 
   return (
     <section className="section">
       {canReorder && (
-        <p className="player-score-bar-list__tip">首局提交前可长按并拖动卡片调整顺序</p>
+        <p className="player-score-bar-list__tip">首局提交前可拖动卡片调整顺序（手机长按，电脑按住拖动）</p>
       )}
-      {visualOrder.map((player) => {
-        const isDragging = draggingPlayer === player;
-        return (
-          <div
-            key={player}
-            ref={(el) => {
-              itemRefs.current[player] = el;
-            }}
-            className={`player-score-bar-wrapper${
-              canReorder ? ' player-score-bar-wrapper--sortable' : ''
-            }${isDragging ? ' player-score-bar-wrapper--dragging' : ''}`}
-            onPointerDown={(event) => handlePointerDown(event, player)}
-            onPointerMove={handlePointerMove}
-            onPointerUp={handlePointerUp}
-            onPointerCancel={handlePointerCancel}
-          >
-            <PlayerScoreBar player={player} />
-          </div>
-        );
-      })}
+      <div className="player-score-bar-list">
+        {visualOrder.map((player) => {
+          const isDragging = draggingPlayer === player;
+          const isDropTarget =
+            draggingPlayer !== null && !isDragging && dropTargetPlayer === player;
+          return (
+            <div
+              key={player}
+              ref={(el) => {
+                itemRefs.current[player] = el;
+              }}
+              className={`player-score-bar-wrapper${
+                canReorder ? ' player-score-bar-wrapper--sortable' : ''
+              }${isDragging ? ' player-score-bar-wrapper--dragging' : ''}${
+                isDropTarget ? ' player-score-bar-wrapper--drop-target' : ''
+              }`}
+              onPointerDown={(event) => handlePointerDown(event, player)}
+              onMouseDown={(event) => handleMouseDown(event, player)}
+              onPointerMove={handlePointerMoveOnItem}
+              onPointerUp={handlePointerUp}
+              onPointerCancel={handlePointerCancel}
+              onContextMenu={(event) => {
+                if (canReorder) {
+                  event.preventDefault();
+                }
+              }}
+            >
+              <PlayerScoreBar player={player} />
+            </div>
+          );
+        })}
+      </div>
     </section>
   );
 }
-
-

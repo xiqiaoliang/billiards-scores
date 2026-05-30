@@ -241,12 +241,47 @@ body {
   color: var(--color-text-secondary);
 }
 
+.player-score-bar-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.player-score-bar-wrapper {
+  position: relative;
+}
+
+.player-score-bar-wrapper .player-score-bar {
+  margin-bottom: 0;
+}
+
 .player-score-bar-wrapper--sortable {
-  touch-action: manipulation;
+  touch-action: none;
+  -webkit-touch-callout: none;
+  cursor: grab;
 }
 
 .player-score-bar-wrapper--dragging {
-  opacity: 0.75;
+  z-index: 2;
+  cursor: grabbing;
+}
+
+.player-score-bar-wrapper--dragging .player-score-bar {
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.2);
+  transform: scale(1.01);
+  transition: box-shadow 0.12s ease, transform 0.12s ease;
+}
+
+.player-score-bar-wrapper--drop-target::before {
+  content: '';
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  top: -6px;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--color-player1);
+  box-shadow: 0 0 0 4px rgba(22, 119, 255, 0.12);
 }
 
 .player-score-bar__head {

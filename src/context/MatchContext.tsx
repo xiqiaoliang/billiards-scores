@@ -613,8 +613,10 @@ export function MatchProvider({ children }: { children: ReactNode }) {
         ...state.match,
         currentPlayerOrder: normalized,
       };
-      await saveMatch(updated);
+
+      // Apply immediately so subsequent scoring and first-round direction use the new order.
       dispatch({ type: 'SET_MATCH', match: updated });
+      await saveMatch(updated);
     },
     [state.match, isReadOnly, isEditingRound],
   );
