@@ -314,16 +314,35 @@ export async function generateMatchQrDataUrl(
   size = 640,
 ): Promise<string> {
   const payload = encodeMatchToQrPayload(match);
+  const ua = typeof navigator !== 'undefined' ? navigator.userAgent : '';
+  const isIOSSafari = /iP(ad|hone|od)/.test(ua) && /Safari/.test(ua) && !/(CriOS|FxiOS|EdgiOS)/.test(ua);
+
   return QRCode.toDataURL(payload, {
     width: size,
-    margin: 4,
-    errorCorrectionLevel: 'L',
+    margin: isIOSSafari ? 2 : 4,
+    // Higher EC and explicit dark/light colors are more robust for iOS camera/decoder.
+    errorCorrectionLevel: isIOSSafari ? 'M' : 'L',
+    color: {
+      dark: '#000000',
+      light: '#FFFFFF',
+    },
+    rendererOpts: {
+      quality: 1,
+    },
   });
 }
 
 export async function generateMatchQrShareImage(
   match: MatchRecord,
 ): Promise<string> {
+  // iOS Safari may fail drawing CJK text/font fallback on canvas in some versions.
+  // Return pure QR image for maximum compatibility.
+  const ua = typeof navigator !== 'undefined' ? navigator.userAgent : '';
+  const isIOSSafari = /iP(ad|hone|od)/.test(ua) && /Safari/.test(ua) && !/(CriOS|FxiOS|EdgiOS)/.test(ua);
+  if (isIOSSafari) {
+    return generateMatchQrDataUrl(match, 640);
+  }
+
   const qrDataUrl = await generateMatchQrDataUrl(match, 640);
   const qrImg = await loadImage(qrDataUrl);
 
@@ -344,7 +363,7 @@ export async function generateMatchQrShareImage(
   ctx.fillRect(0, 0, canvasWidth, canvasHeight);
 
   ctx.fillStyle = '#1a1a1a';
-  ctx.font = 'bold 22px system-ui, sans-serif';
+  ctx.font = 'bold 22px sans-serif';
   ctx.textAlign = 'center';
   ctx.fillText(
     `${match.player1Name} vs ${match.player2Name}`,
@@ -353,7 +372,7 @@ export async function generateMatchQrShareImage(
   );
 
   ctx.fillStyle = '#666666';
-  ctx.font = '14px system-ui, sans-serif';
+  ctx.font = '14px sans-serif';
   ctx.fillText(
     `共 ${match.rounds.length} 局 · 扫码导入比赛记录`,
     canvasWidth / 2,
