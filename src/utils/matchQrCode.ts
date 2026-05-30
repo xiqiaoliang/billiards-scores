@@ -301,6 +301,33 @@ function generateId(): string {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 }
 
+function isIOSSafariBrowser(): boolean {
+  if (typeof navigator === 'undefined') return false;
+  const ua = navigator.userAgent;
+  const isIOS =
+    /iP(ad|hone|od)/.test(ua) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  return isIOS && /Safari/.test(ua) && !/(CriOS|FxiOS|EdgiOS|MicroMessenger)/.test(ua);
+}
+
+function svgToDataUrl(svg: string): string {
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+}
+
+async function generateQrSvgDataUrl(payload: string, size: number): Promise<string> {
+  const svg = await QRCode.toString(payload, {
+    type: 'svg',
+    width: size,
+    margin: 4,
+    errorCorrectionLevel: 'L',
+    color: {
+      dark: '#000000',
+      light: '#FFFFFF',
+    },
+  });
+  return svgToDataUrl(svg);
+}
+
 export function prepareImportedMatch(match: MatchRecord): MatchRecord {
   return {
     ...match,
@@ -314,22 +341,29 @@ export async function generateMatchQrDataUrl(
   size = 640,
 ): Promise<string> {
   const payload = encodeMatchToQrPayload(match);
-  const ua = typeof navigator !== 'undefined' ? navigator.userAgent : '';
-  const isIOSSafari = /iP(ad|hone|od)/.test(ua) && /Safari/.test(ua) && !/(CriOS|FxiOS|EdgiOS)/.test(ua);
 
-  return QRCode.toDataURL(payload, {
-    width: size,
-    margin: isIOSSafari ? 2 : 4,
-    // Higher EC and explicit dark/light colors are more robust for iOS camera/decoder.
-    errorCorrectionLevel: isIOSSafari ? 'M' : 'L',
-    color: {
-      dark: '#000000',
-      light: '#FFFFFF',
-    },
-    rendererOpts: {
-      quality: 1,
-    },
-  });
+  // iPhone Safari is prone to canvas/toDataURL failures in qrcode's PNG renderer.
+  // SVG avoids the canvas path and keeps the same payload scannable.
+  if (isIOSSafariBrowser()) {
+    return generateQrSvgDataUrl(payload, size);
+  }
+
+  try {
+    return await QRCode.toDataURL(payload, {
+      width: size,
+      margin: 4,
+      errorCorrectionLevel: 'L',
+      color: {
+        dark: '#000000',
+        light: '#FFFFFF',
+      },
+      rendererOpts: {
+        quality: 1,
+      },
+    });
+  } catch {
+    return generateQrSvgDataUrl(payload, size);
+  }
 }
 
 export async function generateMatchQrShareImage(
@@ -337,9 +371,7 @@ export async function generateMatchQrShareImage(
 ): Promise<string> {
   // iOS Safari may fail drawing CJK text/font fallback on canvas in some versions.
   // Return pure QR image for maximum compatibility.
-  const ua = typeof navigator !== 'undefined' ? navigator.userAgent : '';
-  const isIOSSafari = /iP(ad|hone|od)/.test(ua) && /Safari/.test(ua) && !/(CriOS|FxiOS|EdgiOS)/.test(ua);
-  if (isIOSSafari) {
+  if (isIOSSafariBrowser()) {
     return generateMatchQrDataUrl(match, 640);
   }
 
