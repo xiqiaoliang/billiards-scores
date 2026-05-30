@@ -47,6 +47,61 @@ function getPlayerOrder(mode: MatchMode, playerOrder?: PlayerId[]): PlayerId[] {
   return defaults.filter((p) => playerOrder.includes(p));
 }
 
+function normalizeTrioOrder(playerOrder?: PlayerId[]): PlayerId[] {
+  const resolved = getPlayerOrder('trio', playerOrder);
+  return resolved.length === 3 ? resolved : [1, 2, 3];
+}
+
+export function calcNextTrioPlayerOrder(
+  currentOrder: PlayerId[] | undefined,
+  tags: PendingTag[],
+): PlayerId[] {
+  let nextOrder = [...normalizeTrioOrder(currentOrder)];
+  const winTag = getRoundWinTag(tags);
+  const winner = getRoundWinnerPlayer(tags, 'trio', nextOrder);
+  const noSwap = Boolean(winTag && (winTag.isHeiJin || winTag.isLetGan));
+
+  if (!noSwap && winner !== null) {
+    const winnerIndex = nextOrder.indexOf(winner);
+    if (winnerIndex >= 0) {
+      const upstreamIndex = (winnerIndex - 1 + nextOrder.length) % nextOrder.length;
+      const upstream = nextOrder[upstreamIndex];
+      nextOrder = nextOrder.map((id) => {
+        if (id === winner) return upstream;
+        if (id === upstream) return winner;
+        return id;
+      });
+    }
+  }
+
+  const opener = winTag?.isHeiJin ? winTag.player : winner;
+  if (opener !== null && opener !== undefined) {
+    const openerIndex = nextOrder.indexOf(opener);
+    if (openerIndex > 0) {
+      nextOrder = [...nextOrder.slice(openerIndex), ...nextOrder.slice(0, openerIndex)];
+    }
+  }
+
+  return nextOrder;
+}
+
+export function buildComputedRoundOrders(match: MatchRecord): Record<number, PlayerId[]> {
+  if (match.mode !== 'trio') {
+    return Object.fromEntries(match.rounds.map((r) => [r.roundNumber, [1, 2] as PlayerId[]]));
+  }
+
+  const rounds = [...match.rounds].sort((a, b) => a.roundNumber - b.roundNumber);
+  const computed: Record<number, PlayerId[]> = {};
+  let order = normalizeTrioOrder(rounds[0]?.playerOrder ?? match.currentPlayerOrder);
+
+  for (const round of rounds) {
+    computed[round.roundNumber] = [...order];
+    order = calcNextTrioPlayerOrder(order, round.tags);
+  }
+
+  return computed;
+}
+
 function getRelativePlayers(
   actor: PlayerId,
   mode: MatchMode,
@@ -501,8 +556,10 @@ export function getRoundWinnerPlayer(
   if (!winTag) return null;
 
   if (mode === 'trio') {
-    const { upstream } = getRelativePlayers(winTag.player, 'trio', playerOrder);
-    if (winTag.isHeiJin) return upstream;
+    const { upstream, downstream } = getRelativePlayers(winTag.player, 'trio', playerOrder);
+    if (winTag.isHeiJin) {
+      return winTag.isLetGan ? downstream : upstream;
+    }
     return winTag.player;
   }
 

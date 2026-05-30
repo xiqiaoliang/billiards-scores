@@ -1,12 +1,21 @@
 import { useMatch } from '../context/MatchContext';
+import { buildComputedRoundOrders } from '../domain/scoring';
 import { PendingTags } from './PendingTags';
 import { PlayerScoreBar } from './PlayerScoreBar';
 import { SubmitSection } from './SubmitSection';
 
 export function RoundEditModal() {
-  const { editingRoundNumber, cancelEditRound, displayPlayerOrder } = useMatch();
+  const { editingRoundNumber, cancelEditRound, displayPlayerOrder, match } = useMatch();
 
   if (editingRoundNumber == null) return null;
+
+  const computedOrders = match ? buildComputedRoundOrders(match) : {};
+  const editingRound = match?.rounds.find((r) => r.roundNumber === editingRoundNumber);
+  const editingPlayerOrder =
+    computedOrders[editingRoundNumber] ??
+    (editingRound?.playerOrder && editingRound.playerOrder.length > 0
+      ? editingRound.playerOrder
+      : displayPlayerOrder);
 
   return (
     <div className="round-edit-overlay" role="dialog" aria-modal="true">
@@ -26,7 +35,7 @@ export function RoundEditModal() {
           <p className="round-edit-sheet__hint">
             修改计分标签后点击保存，本局时间不变。
           </p>
-          {displayPlayerOrder.map((player) => (
+          {editingPlayerOrder.map((player) => (
             <PlayerScoreBar key={player} player={player} />
           ))}
           <h4 className="round-edit-sheet__subtitle">本局得分（点击标签可删除）</h4>

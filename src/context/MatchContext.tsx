@@ -28,7 +28,7 @@ import {
   inferLetGanFromTags,
   rebuildRoundRecord,
 } from '../domain/matchUtils';
-import { buildRoundRecord, getRoundWinTag, getRoundWinnerPlayer } from '../domain/scoring';
+import { buildRoundRecord, calcNextTrioPlayerOrder } from '../domain/scoring';
 import type {
   AppView,
   ConfirmModalType,
@@ -604,38 +604,14 @@ export function MatchProvider({ children }: { children: ReactNode }) {
       state.match.currentPlayerOrder,
     );
 
-    let nextPlayerOrder = state.match.currentPlayerOrder;
+    let nextPlayerOrder: PlayerId[] | undefined =
+      state.match.mode === 'trio'
+        ? state.match.currentPlayerOrder && state.match.currentPlayerOrder.length === 3
+          ? [...state.match.currentPlayerOrder]
+          : ([1, 2, 3] as PlayerId[])
+        : state.match.currentPlayerOrder;
     if (state.match.mode === 'trio') {
-      const winTag = getRoundWinTag(state.session.pendingTags);
-      const winner = getRoundWinnerPlayer(
-        state.session.pendingTags,
-        'trio',
-        state.match.currentPlayerOrder,
-      );
-      const noSwap = Boolean(winTag && (winTag.isHeiJin || winTag.isLetGan));
-      if (!noSwap && winner !== null && nextPlayerOrder && nextPlayerOrder.length === 3) {
-        const winnerIndex = nextPlayerOrder.indexOf(winner);
-        if (winnerIndex >= 0) {
-          const upstreamIndex = (winnerIndex - 1 + nextPlayerOrder.length) % nextPlayerOrder.length;
-          const upstream = nextPlayerOrder[upstreamIndex];
-          nextPlayerOrder = nextPlayerOrder.map((id) => {
-            if (id === winner) return upstream;
-            if (id === upstream) return winner;
-            return id;
-          });
-        }
-      }
-
-      const opener = winTag?.isHeiJin ? winTag.player : winner;
-      if (opener !== null && opener !== undefined && nextPlayerOrder && nextPlayerOrder.length === 3) {
-        const openerIndex = nextPlayerOrder.indexOf(opener);
-        if (openerIndex > 0) {
-          nextPlayerOrder = [
-            ...nextPlayerOrder.slice(openerIndex),
-            ...nextPlayerOrder.slice(0, openerIndex),
-          ];
-        }
-      }
+      nextPlayerOrder = calcNextTrioPlayerOrder(nextPlayerOrder, state.session.pendingTags);
     }
 
     const updated = applyPlayerNames(
@@ -644,7 +620,7 @@ export function MatchProvider({ children }: { children: ReactNode }) {
         rounds: [...state.match.rounds, round],
         currentRoundNumber: state.match.currentRoundNumber + 1,
         currentRoundStartTime: endTime,
-        currentPlayerOrder: nextPlayerOrder,
+        currentPlayerOrder: nextPlayerOrder as PlayerId[] | undefined,
       },
       state.session.player1Name,
       state.session.player2Name,

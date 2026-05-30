@@ -5,6 +5,7 @@ import {
   PLAYER3_COLOR,
 } from '../domain/constants';
 import {
+  buildComputedRoundOrders,
   calcRoundWinnerNet,
   formatNetScore,
   formatPlayerRoundSummary,
@@ -40,10 +41,12 @@ function getRoundOrder(round: RoundRecord, match: MatchRecord): PlayerId[] {
 function RoundHistoryItem({
   round,
   match,
+  order,
   isArchived,
 }: {
   round: RoundRecord;
   match: MatchRecord;
+  order: PlayerId[];
   isArchived: boolean;
 }) {
   const { beginEditRound } = useMatch();
@@ -56,7 +59,7 @@ function RoundHistoryItem({
 
   const longPressHandlers = useLongPress(handleEdit, { disabled: isArchived });
 
-  const order = getRoundOrder(round, match);
+  const statsLayoutClass = order.length === 3 ? 'round-item__stats--trio' : 'round-item__stats--duel';
   const winTag = getRoundWinTag(round.tags);
   const winnerPlayer = getRoundWinnerPlayer(round.tags, match.mode, order);
   const winnerLabel = getRoundWinnerLabel(round.tags, match, order);
@@ -109,7 +112,7 @@ function RoundHistoryItem({
           );
         })}
       </div>
-      <div className="round-item__stats round-item__stats--stacked">
+      <div className={`round-item__stats ${statsLayoutClass}`}>
         {order.map((player) => (
           <span key={player} style={{ color: getPlayerColor(player) }}>
             {getPlayerName(match, player)}{' '}
@@ -132,6 +135,7 @@ function RoundHistoryItem({
 export function RoundHistory({ match }: RoundHistoryProps) {
   const isArchived = match.status === 'archived';
   const rounds = [...match.rounds].sort((a, b) => b.roundNumber - a.roundNumber);
+  const computedOrders = buildComputedRoundOrders(match);
 
   return (
     <section
@@ -154,6 +158,7 @@ export function RoundHistory({ match }: RoundHistoryProps) {
             key={round.roundNumber}
             round={round}
             match={match}
+            order={computedOrders[round.roundNumber] ?? getRoundOrder(round, match)}
             isArchived={isArchived}
           />
         ))
