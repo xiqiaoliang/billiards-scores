@@ -9,7 +9,6 @@ import {
 import { useMatch } from '../context/MatchContext';
 import { hasGolden9Exclusive } from '../domain/validators';
 import type { PlayerId, ScoreItemType } from '../domain/types';
-import { PlayerNameEditor } from './PlayerNameEditor';
 
 interface PlayerScoreBarProps {
   player: PlayerId;
@@ -28,12 +27,10 @@ export function PlayerScoreBar({ player }: PlayerScoreBarProps) {
     session,
     activeSession,
     tagFormReadOnly,
-    isEditingRound,
     addScoreTag,
     addGolden9Tag,
     setLetGan,
     setHeiJin,
-    setPlayerName,
   } = useMatch();
   const color =
     player === 1 ? PLAYER1_COLOR : player === 2 ? PLAYER2_COLOR : PLAYER3_COLOR;
@@ -55,7 +52,6 @@ export function PlayerScoreBar({ player }: PlayerScoreBarProps) {
       : player === 2
         ? activeSession.heiJin.player2
         : activeSession.heiJin.player3;
-  const canEditNames = !tagFormReadOnly && !isEditingRound;
   const golden9Locked = hasGolden9Exclusive(activeSession.pendingTags);
   const scoreButtonsDisabled = tagFormReadOnly || golden9Locked;
 
@@ -72,13 +68,9 @@ export function PlayerScoreBar({ player }: PlayerScoreBarProps) {
   return (
     <div className="player-score-bar">
       <div className="player-score-bar__head">
-        <PlayerNameEditor
-          name={name}
-          color={color}
-          editable={canEditNames}
-          className="player-score-bar__name"
-          onNameChange={(n) => setPlayerName(player, n)}
-        />
+        <span className="player-score-bar__name" style={{ color }}>
+          {name}
+        </span>
         <label className="player-score-bar__letgan">
           <input
             type="checkbox"

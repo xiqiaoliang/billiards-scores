@@ -63,9 +63,11 @@ export function MatchHistoryPage() {
   return (
     <div className="history-page">
       <header className="history-page__header">
-        <button type="button" className="btn-text" onClick={closeHistory}>
-          返回
-        </button>
+        <div className="history-page__left">
+          <button type="button" className="btn-text" onClick={closeHistory}>
+            返回
+          </button>
+        </div>
         <h1 className="history-page__title">历史比赛</h1>
         <div className="history-page__actions">
           <button

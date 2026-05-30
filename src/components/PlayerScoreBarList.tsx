@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   type PointerEvent as ReactPointerEvent,
@@ -47,6 +48,32 @@ export function PlayerScoreBarList({
   const pointerTypeRef = useRef<string | null>(null);
   const pressedPlayerRef = useRef<PlayerId | null>(null);
   const pressStartRef = useRef<{ x: number; y: number } | null>(null);
+  const lastTopPositionsRef = useRef<Partial<Record<PlayerId, number>>>({});
+
+  useLayoutEffect(() => {
+    const nextTopPositions: Partial<Record<PlayerId, number>> = {};
+
+    visualOrder.forEach((player) => {
+      const el = itemRefs.current[player];
+      if (!el) return;
+      const prevTop = lastTopPositionsRef.current[player];
+      const nextTop = el.getBoundingClientRect().top;
+      nextTopPositions[player] = nextTop;
+
+      if (prevTop === undefined) return;
+      const deltaY = prevTop - nextTop;
+      if (Math.abs(deltaY) < 1) return;
+
+      el.style.transition = 'none';
+      el.style.transform = `translateY(${deltaY}px)`;
+      requestAnimationFrame(() => {
+        el.style.transition = 'transform 160ms ease';
+        el.style.transform = '';
+      });
+    });
+
+    lastTopPositionsRef.current = nextTopPositions;
+  }, [visualOrder]);
 
   useEffect(() => {
     if (draggingPlayer !== null) return;
@@ -286,6 +313,11 @@ export function PlayerScoreBarList({
               onPointerMove={handlePointerMoveOnItem}
               onPointerUp={handlePointerUp}
               onPointerCancel={handlePointerCancel}
+              onDragStart={(event) => {
+                if (canReorder) {
+                  event.preventDefault();
+                }
+              }}
               onContextMenu={(event) => {
                 if (canReorder) {
                   event.preventDefault();

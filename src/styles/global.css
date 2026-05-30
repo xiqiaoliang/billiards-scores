@@ -244,11 +244,18 @@ body {
 .player-score-bar-list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 0;
 }
 
 .player-score-bar-wrapper {
   position: relative;
+  margin-bottom: 12px;
+  transition: transform 160ms ease;
+  will-change: transform;
+}
+
+.player-score-bar-wrapper:last-child {
+  margin-bottom: 0;
 }
 
 .player-score-bar-wrapper .player-score-bar {
@@ -258,12 +265,22 @@ body {
 .player-score-bar-wrapper--sortable {
   touch-action: none;
   -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
   cursor: grab;
+}
+
+.player-score-bar-wrapper--sortable,
+.player-score-bar-wrapper--sortable * {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
 }
 
 .player-score-bar-wrapper--dragging {
   z-index: 2;
   cursor: grabbing;
+  transition: none;
 }
 
 .player-score-bar-wrapper--dragging .player-score-bar {
@@ -713,6 +730,11 @@ body {
   color: #fff;
 }
 
+.modal__btn--primary {
+  background: var(--color-player1);
+  color: #fff;
+}
+
 .export-preview-overlay {
   position: fixed;
   inset: 0;
@@ -864,8 +886,19 @@ body {
   z-index: 20;
 }
 
-.history-page__title {
+.history-page__left,
+.history-page__actions {
   flex: 1;
+  min-width: 0;
+}
+
+.history-page__left {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.history-page__title {
+  flex: 0 0 auto;
   text-align: center;
   margin: 0;
   font-size: 17px;
@@ -1044,7 +1077,7 @@ body {
   display: flex;
   align-items: center;
   gap: 2px;
-  min-width: 120px;
+  min-width: 0;
   justify-content: flex-end;
 }
 

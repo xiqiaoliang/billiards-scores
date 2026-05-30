@@ -25,24 +25,24 @@ export function ConfirmModal() {
           <div className="modal__actions modal__actions--stack">
             <button
               type="button"
-              className="modal__btn modal__btn--cancel modal__btn--block"
-              onClick={closeConfirmModal}
-            >
-              取消
-            </button>
-            <button
-              type="button"
-              className="modal__btn modal__btn--block"
+              className="modal__btn modal__btn--primary modal__btn--block"
               onClick={() => confirmNewMatch('duel')}
             >
               二人追分
             </button>
             <button
               type="button"
-              className="modal__btn modal__btn--confirm modal__btn--block"
+              className="modal__btn modal__btn--primary modal__btn--block"
               onClick={() => confirmNewMatch('trio')}
             >
               三人追分
+            </button>
+            <button
+              type="button"
+              className="modal__btn modal__btn--cancel modal__btn--block"
+              onClick={closeConfirmModal}
+            >
+              取消
             </button>
           </div>
         </div>
