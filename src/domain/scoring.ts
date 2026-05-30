@@ -44,7 +44,9 @@ function getPlayerOrder(mode: MatchMode, playerOrder?: PlayerId[]): PlayerId[] {
   if (!playerOrder || playerOrder.length === 0) {
     return defaults;
   }
-  return defaults.filter((p) => playerOrder.includes(p));
+  const ordered = playerOrder.filter((p): p is PlayerId => defaults.includes(p));
+  const missing = defaults.filter((p) => !ordered.includes(p));
+  return [...ordered, ...missing];
 }
 
 function normalizeTrioOrder(playerOrder?: PlayerId[]): PlayerId[] {
@@ -131,6 +133,18 @@ function addTransfer(
   balances[to] += score;
 }
 
+function getLetGanGainScore(
+  tag: PendingTag,
+  recipient: PlayerId,
+  score: number,
+): number {
+  // Let-gan only boosts the acting player's positive gain.
+  if (tag.isLetGan && recipient === tag.player) {
+    return score * 2;
+  }
+  return score;
+}
+
 function calcTrioRoundTotals(
   tags: PendingTag[],
   playerOrder?: PlayerId[],
@@ -140,6 +154,7 @@ function calcTrioRoundTotals(
   for (const tag of tags) {
     const score = getBaseScore(tag.type) || FOUL_OPPONENT_BONUS;
     const { upstream, downstream } = getRelativePlayers(tag.player, 'trio', playerOrder);
+    const gainScore = getLetGanGainScore(tag, tag.player, score);
 
     if (tag.type === 'foul' || tag.type === 'break_foul') {
       addTransfer(totals, tag.player, upstream, FOUL_OPPONENT_BONUS);
@@ -153,7 +168,7 @@ function calcTrioRoundTotals(
 
     if (tag.type === 'split') {
       if (tag.isLetGan) {
-        addTransfer(totals, downstream, tag.player, score);
+        addTransfer(totals, downstream, tag.player, gainScore);
       } else {
         addTransfer(totals, upstream, tag.player, score);
       }
@@ -162,24 +177,18 @@ function calcTrioRoundTotals(
 
     if (tag.type === 'normal_win') {
       if (tag.isHeiJin) {
-        const target = tag.isLetGan ? downstream : upstream;
-        addTransfer(totals, tag.player, target, score);
+        addTransfer(totals, tag.player, upstream, score);
       } else {
-        addTransfer(totals, upstream, tag.player, score);
+        addTransfer(totals, upstream, tag.player, gainScore);
       }
       continue;
     }
 
     if (tag.type === 'golden_9' || tag.type === 'small_gold' || tag.type === 'big_gold') {
-      if (tag.isLetGan) {
-        if (tag.isHeiJin) {
-          addTransfer(totals, tag.player, downstream, score);
-        } else {
-          addTransfer(totals, downstream, tag.player, score);
-        }
-      } else if (tag.isHeiJin) {
+      if (tag.isHeiJin) {
         addTransfer(totals, tag.player, upstream, score);
-        addTransfer(totals, tag.player, downstream, score);
+      } else if (tag.isLetGan) {
+        addTransfer(totals, downstream, tag.player, gainScore);
       } else {
         addTransfer(totals, upstream, tag.player, score);
         addTransfer(totals, downstream, tag.player, score);
@@ -234,7 +243,9 @@ export function getTagScoreForPlayer(
   if (mode === 'trio') {
     const totals = calcTrioRoundTotals([tag], context.playerOrder);
     const total = totals[player] ?? 0;
-    return { base: total, extra: 0, total };
+    const isLetGanPositive = tag.isLetGan && player === tag.player && total > 0;
+    const extra = isLetGanPositive ? total / 2 : 0;
+    return { base: total - extra, extra, total };
   }
 
   const opponent: PlayerId = tag.player === 1 ? 2 : 1;
@@ -281,12 +292,6 @@ export function calcRoundPlayerStats(
   player: PlayerId,
   context: ScoreCalcContext = {},
 ): RoundPlayerStats {
-  const mode = context.mode ?? 'duel';
-  if (mode === 'trio') {
-    const totals = calcTrioRoundTotals(tags, context.playerOrder);
-    const total = totals[player] ?? 0;
-    return { baseScore: total, extraScore: 0, roundTotal: total };
-  }
 
   let baseScore = 0;
   let extraScore = 0;
@@ -556,9 +561,9 @@ export function getRoundWinnerPlayer(
   if (!winTag) return null;
 
   if (mode === 'trio') {
-    const { upstream, downstream } = getRelativePlayers(winTag.player, 'trio', playerOrder);
+    const { upstream } = getRelativePlayers(winTag.player, 'trio', playerOrder);
     if (winTag.isHeiJin) {
-      return winTag.isLetGan ? downstream : upstream;
+      return upstream;
     }
     return winTag.player;
   }
