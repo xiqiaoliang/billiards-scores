@@ -310,7 +310,7 @@ function encodeTagV3(tag: PendingTag): string {
   return `${tag.player}${typeIndex.toString(36)}${flags.toString(36)}`;
 }
 
-function decodeTagsV3(raw: string, roundNumber: number): PendingTag[] | null {
+function decodeTagsV3(raw: string, roundNumber: number, mode: MatchRecord['mode']): PendingTag[] | null {
   if (raw.length % 3 !== 0) return null;
 
   const tags: PendingTag[] = [];
@@ -319,8 +319,11 @@ function decodeTagsV3(raw: string, roundNumber: number): PendingTag[] | null {
     const typeIndex = fromBase36(raw[i + 1]);
     const flags = fromBase36(raw[i + 2]);
     const type = SCORE_TYPES[typeIndex];
+    const validPlayer = mode === 'trio'
+      ? (player === 1 || player === 2 || player === 3)
+      : (player === 1 || player === 2);
 
-    if ((player !== 1 && player !== 2) || !type || !Number.isFinite(flags)) {
+    if (!validPlayer || !type || !Number.isFinite(flags)) {
       return null;
     }
 
@@ -336,9 +339,45 @@ function decodeTagsV3(raw: string, roundNumber: number): PendingTag[] | null {
   return tags;
 }
 
-function encodeRoundV3(round: RoundRecord, createdAt: number): string {
+function encodePlayerOrderV3(playerOrder: PlayerId[]): string {
+  return playerOrder.join('');
+}
+
+function decodePlayerOrderV3(raw: string, mode: MatchRecord['mode']): PlayerId[] | null {
+  if (!raw) {
+    return mode === 'trio' ? [1, 2, 3] : [1, 2];
+  }
+
+  const parsed = raw.split('').map((v) => Number(v));
+  if (!parsed.every((p) => p === 1 || p === 2 || p === 3)) return null;
+  const unique = Array.from(new Set(parsed)) as PlayerId[];
+
+  if (mode === 'trio') {
+    if (unique.length !== 3 || ![1, 2, 3].every((p) => unique.includes(p as PlayerId))) {
+      return null;
+    }
+    return unique;
+  }
+
+  const duelOrder = unique.filter((p) => p === 1 || p === 2);
+  if (duelOrder.length !== 2 || !duelOrder.includes(1) || !duelOrder.includes(2)) {
+    return null;
+  }
+  return duelOrder;
+}
+
+function encodeRoundV3(round: RoundRecord, createdAt: number, mode: MatchRecord['mode']): string {
   const startOffsetSec = Math.max(0, (round.startTime - createdAt) / 1000);
   const durationSec = Math.max(0, (round.durationMs || round.endTime - round.startTime) / 1000);
+  if (mode === 'trio') {
+    return [
+      toBase36(startOffsetSec),
+      toBase36(durationSec),
+      encodePlayerOrderV3(round.playerOrder ?? [1, 2, 3]),
+      round.tags.map(encodeTagV3).join(''),
+    ].join('.');
+  }
+
   return [
     toBase36(startOffsetSec),
     toBase36(durationSec),
@@ -346,58 +385,93 @@ function encodeRoundV3(round: RoundRecord, createdAt: number): string {
   ].join('.');
 }
 
-function decodeRoundV3(raw: string, roundNumber: number, createdAt: number): RoundRecord | null {
+function decodeRoundV3(
+  raw: string,
+  roundNumber: number,
+  createdAt: number,
+  mode: MatchRecord['mode'],
+): RoundRecord | null {
   const parts = raw.split('.');
-  if (parts.length !== 3) return null;
+  if (parts.length !== 3 && parts.length !== 4) return null;
 
   const startOffsetSec = fromBase36(parts[0]);
   const durationSec = fromBase36(parts[1]);
   if (![startOffsetSec, durationSec].every(Number.isFinite)) return null;
 
-  const tags = decodeTagsV3(parts[2], roundNumber);
+  const defaultPlayerOrder: PlayerId[] = mode === 'trio' ? [1, 2, 3] : [1, 2];
+  const playerOrder = parts.length === 4
+    ? decodePlayerOrderV3(parts[2], mode)
+    : defaultPlayerOrder;
+  if (!playerOrder) return null;
+
+  const tagsRaw = parts.length === 4 ? parts[3] : parts[2];
+  const tags = decodeTagsV3(tagsRaw, roundNumber, mode);
   if (!tags) return null;
 
   const startTime = createdAt + startOffsetSec * 1000;
   const endTime = startTime + durationSec * 1000;
-  return buildRoundRecord(roundNumber, startTime, endTime, tags);
+  return buildRoundRecord(roundNumber, startTime, endTime, tags, mode, playerOrder);
 }
 
 export function encodeMatchCompactV3(match: MatchRecord): string {
+  const modeCode = match.mode === 'trio' ? '1' : '0';
   const statusCode = match.status === 'archived' ? '1' : '0';
   const syncCode = match.syncStatus === 'pending' ? '1' : match.syncStatus === 'synced' ? '2' : '0';
-  const names = `${encodeText(match.player1Name)}.${encodeText(match.player2Name)}`;
-  const rounds = match.rounds.map((round) => encodeRoundV3(round, match.createdAt)).join(';');
+  const encodedNames = [encodeText(match.player1Name), encodeText(match.player2Name)];
+  if (match.mode === 'trio') {
+    encodedNames.push(encodeText(match.player3Name ?? '选手3'));
+  }
+  const names = encodedNames.join('.');
+  const rounds = match.rounds
+    .map((round) => encodeRoundV3(round, match.createdAt, match.mode))
+    .join(';');
+  const currentOrder = encodePlayerOrderV3(
+    match.currentPlayerOrder ?? (match.mode === 'trio' ? [1, 2, 3] : [1, 2]),
+  );
 
   return [
-    `${statusCode}${syncCode}`,
+    `${statusCode}${syncCode}${modeCode}`,
     toBase36(match.createdAt),
     names,
+    currentOrder,
     rounds,
   ].join('|');
 }
 
 function decodeMatchCompactV3(raw: string): MatchRecord | null {
   const fields = raw.split('|');
-  if (fields.length !== 4) return null;
+  if (fields.length !== 4 && fields.length !== 5) return null;
 
-  const [meta, createdAtRaw, namesRaw, roundsRaw] = fields;
+  const [meta, createdAtRaw, namesRaw, currentOrderRaw = '', roundsRaw = ''] =
+    fields.length === 5
+      ? fields
+      : [fields[0], fields[1], fields[2], '', fields[3]];
   const createdAt = fromBase36(createdAtRaw);
   if (!Number.isFinite(createdAt)) return null;
 
   const names = namesRaw.split('.');
-  if (names.length !== 2) return null;
+  if (names.length !== 2 && names.length !== 3) return null;
+
+  const mode: MatchRecord['mode'] = meta[2] === '1' || names.length === 3 ? 'trio' : 'duel';
 
   let player1Name: string;
   let player2Name: string;
+  let player3Name: string | undefined;
   try {
     player1Name = decodeText(names[0]);
     player2Name = decodeText(names[1]);
+    if (mode === 'trio') {
+      player3Name = names[2] ? decodeText(names[2]) : '选手3';
+    }
   } catch {
     return null;
   }
 
+  const currentPlayerOrder = decodePlayerOrderV3(currentOrderRaw, mode);
+  if (!currentPlayerOrder) return null;
+
   const rounds = roundsRaw
-    ? roundsRaw.split(';').map((round, index) => decodeRoundV3(round, index + 1, createdAt))
+    ? roundsRaw.split(';').map((round, index) => decodeRoundV3(round, index + 1, createdAt, mode))
     : [];
   if (rounds.some((round) => !round)) return null;
 
@@ -405,12 +479,14 @@ function decodeMatchCompactV3(raw: string): MatchRecord | null {
   const syncCode = meta[1] ?? '0';
 
   return normalizeMatchRecord({
-    mode: 'duel',
+    mode,
     id: `qr-${createdAtRaw}`,
     status: meta[0] === '1' ? 'archived' : 'in_progress',
     createdAt,
     player1Name,
     player2Name,
+    player3Name,
+    currentPlayerOrder,
     rounds: rounds as RoundRecord[],
     currentRoundNumber: rounds.length + 1,
     currentRoundStartTime: lastRound?.endTime ?? createdAt,
@@ -429,7 +505,7 @@ function decodeMatchJson(raw: string): MatchRecord | null {
 
 export function encodeMatchToQrPayload(match: MatchRecord): string {
   const normalized = normalizeMatchRecord(match) ?? match;
-  return `${QR_PREFIX}${encodeText(JSON.stringify(normalized))}`;
+  return `${QR_PREFIX}${encodeMatchCompactV3(normalized)}`;
 }
 
 export function decodeMatchFromQrPayload(payload: string): MatchRecord | null {
@@ -488,7 +564,6 @@ export async function generateMatchQrDataUrl(
   size = 640,
 ): Promise<string> {
   const payload = encodeMatchToQrPayload(match);
-  console.log(payload);
   // iPhone Safari is prone to canvas/toDataURL failures in qrcode's PNG renderer.
   // SVG avoids the canvas path and keeps the same payload scannable.
   if (isIOSSafariBrowser()) {
