@@ -54,16 +54,24 @@ function normalizeTrioOrder(playerOrder?: PlayerId[]): PlayerId[] {
   return resolved.length === 3 ? resolved : [1, 2, 3];
 }
 
-export function calcNextTrioPlayerOrder(
+function normalizePlayerOrder(
+  mode: MatchMode,
+  playerOrder?: PlayerId[],
+): PlayerId[] {
+  return getPlayerOrder(mode, playerOrder);
+}
+
+export function calcNextPlayerOrder(
+  mode: MatchMode,
   currentOrder: PlayerId[] | undefined,
   tags: PendingTag[],
 ): PlayerId[] {
-  let nextOrder = [...normalizeTrioOrder(currentOrder)];
+  let nextOrder = [...normalizePlayerOrder(mode, currentOrder)];
   const winTag = getRoundWinTag(tags);
-  const winner = getRoundWinnerPlayer(tags, 'trio', nextOrder);
+  const winner = getRoundWinnerPlayer(tags, mode, nextOrder);
   const noSwap = Boolean(winTag && (winTag.isHeiJin || winTag.isLetGan));
 
-  if (!noSwap && winner !== null) {
+  if (!noSwap && winner !== null && nextOrder.length > 1) {
     const winnerIndex = nextOrder.indexOf(winner);
     if (winnerIndex >= 0) {
       const upstreamIndex = (winnerIndex - 1 + nextOrder.length) % nextOrder.length;
@@ -87,18 +95,24 @@ export function calcNextTrioPlayerOrder(
   return nextOrder;
 }
 
-export function buildComputedRoundOrders(match: MatchRecord): Record<number, PlayerId[]> {
-  if (match.mode !== 'trio') {
-    return Object.fromEntries(match.rounds.map((r) => [r.roundNumber, [1, 2] as PlayerId[]]));
-  }
+export function calcNextTrioPlayerOrder(
+  currentOrder: PlayerId[] | undefined,
+  tags: PendingTag[],
+): PlayerId[] {
+  return calcNextPlayerOrder('trio', normalizeTrioOrder(currentOrder), tags);
+}
 
+export function buildComputedRoundOrders(match: MatchRecord): Record<number, PlayerId[]> {
   const rounds = [...match.rounds].sort((a, b) => a.roundNumber - b.roundNumber);
   const computed: Record<number, PlayerId[]> = {};
-  let order = normalizeTrioOrder(rounds[0]?.playerOrder ?? match.currentPlayerOrder);
+  let order = normalizePlayerOrder(
+    match.mode,
+    rounds[0]?.playerOrder ?? match.currentPlayerOrder,
+  );
 
   for (const round of rounds) {
     computed[round.roundNumber] = [...order];
-    order = calcNextTrioPlayerOrder(order, round.tags);
+    order = calcNextPlayerOrder(match.mode, order, round.tags);
   }
 
   return computed;
@@ -586,7 +600,7 @@ export function getRoundWinnerLabel(
   if (winTag.isHeiJin) {
     const heiJinLabel = getHeiJinLabel(winTag.type);
     if (heiJinLabel) {
-      return `${getPlayerName(match, winnerPlayer)} 对方${heiJinLabel}`;
+      return `${getPlayerName(match, winnerPlayer)} ${getPlayerName(match, winTag.player)}${heiJinLabel}`;
     }
   }
 

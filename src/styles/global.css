@@ -235,6 +235,20 @@ body {
   margin-bottom: 0;
 }
 
+.player-score-bar-list__tip {
+  margin: 0 0 8px;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+
+.player-score-bar-wrapper--sortable {
+  touch-action: manipulation;
+}
+
+.player-score-bar-wrapper--dragging {
+  opacity: 0.75;
+}
+
 .player-score-bar__head {
   display: flex;
   align-items: center;

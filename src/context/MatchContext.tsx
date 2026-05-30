@@ -28,7 +28,7 @@ import {
   inferLetGanFromTags,
   rebuildRoundRecord,
 } from '../domain/matchUtils';
-import { buildRoundRecord, calcNextTrioPlayerOrder } from '../domain/scoring';
+import { buildRoundRecord, calcNextPlayerOrder } from '../domain/scoring';
 import type {
   AppView,
   ConfirmModalType,
@@ -314,6 +314,7 @@ interface MatchContextValue {
   setLetGan: (player: PlayerId, checked: boolean) => void;
   setHeiJin: (player: PlayerId, checked: boolean) => void;
   setPlayerName: (player: PlayerId, name: string) => void;
+  reorderPlayerOrder: (order: PlayerId[]) => Promise<void>;
   submitRound: () => Promise<void>;
   beginEditRound: (roundNumber: number) => void;
   cancelEditRound: () => void;
@@ -583,6 +584,41 @@ export function MatchProvider({ children }: { children: ReactNode }) {
     [isReadOnly],
   );
 
+  const reorderPlayerOrder = useCallback(
+    async (order: PlayerId[]) => {
+      if (!state.match || isReadOnly || isEditingRound || state.match.rounds.length > 0) {
+        return;
+      }
+
+      const expected: PlayerId[] = state.match.mode === 'trio' ? [1, 2, 3] : [1, 2];
+      const normalized = order.filter((p): p is PlayerId => expected.includes(p));
+      for (const player of expected) {
+        if (!normalized.includes(player)) {
+          normalized.push(player);
+        }
+      }
+
+      const current =
+        state.match.currentPlayerOrder && state.match.currentPlayerOrder.length > 0
+          ? state.match.currentPlayerOrder
+          : expected;
+      if (
+        current.length === normalized.length &&
+        current.every((player, index) => player === normalized[index])
+      ) {
+        return;
+      }
+
+      const updated: MatchRecord = {
+        ...state.match,
+        currentPlayerOrder: normalized,
+      };
+      await saveMatch(updated);
+      dispatch({ type: 'SET_MATCH', match: updated });
+    },
+    [state.match, isReadOnly, isEditingRound],
+  );
+
   const submitRound = useCallback(async () => {
     if (!state.match || isReadOnly) return;
 
@@ -604,15 +640,16 @@ export function MatchProvider({ children }: { children: ReactNode }) {
       state.match.currentPlayerOrder,
     );
 
-    let nextPlayerOrder: PlayerId[] | undefined =
-      state.match.mode === 'trio'
-        ? state.match.currentPlayerOrder && state.match.currentPlayerOrder.length === 3
-          ? [...state.match.currentPlayerOrder]
-          : ([1, 2, 3] as PlayerId[])
-        : state.match.currentPlayerOrder;
-    if (state.match.mode === 'trio') {
-      nextPlayerOrder = calcNextTrioPlayerOrder(nextPlayerOrder, state.session.pendingTags);
-    }
+    const defaultOrder: PlayerId[] = state.match.mode === 'trio' ? [1, 2, 3] : [1, 2];
+    const currentOrder =
+      state.match.currentPlayerOrder && state.match.currentPlayerOrder.length > 0
+        ? [...state.match.currentPlayerOrder]
+        : defaultOrder;
+    const nextPlayerOrder = calcNextPlayerOrder(
+      state.match.mode,
+      currentOrder,
+      state.session.pendingTags,
+    );
 
     const updated = applyPlayerNames(
       {
@@ -957,6 +994,7 @@ export function MatchProvider({ children }: { children: ReactNode }) {
       setLetGan,
       setHeiJin,
       setPlayerName,
+      reorderPlayerOrder,
       submitRound,
       beginEditRound,
       cancelEditRound,
@@ -1009,6 +1047,7 @@ export function MatchProvider({ children }: { children: ReactNode }) {
       setLetGan,
       setHeiJin,
       setPlayerName,
+      reorderPlayerOrder,
       submitRound,
       beginEditRound,
       cancelEditRound,

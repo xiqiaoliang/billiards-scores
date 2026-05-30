@@ -5,16 +5,30 @@ import { MatchHistoryPage } from './components/MatchHistoryPage';
 import { OverviewTable } from './components/OverviewTable';
 import { PageHeader } from './components/PageHeader';
 import { PendingTags } from './components/PendingTags';
-import { PlayerScoreBar } from './components/PlayerScoreBar';
+import { PlayerScoreBarList } from './components/PlayerScoreBarList';
 import { QrErrorDetailModal } from './components/QrErrorDetailModal';
 import { RoundEditModal } from './components/RoundEditModal';
 import { RoundHistory } from './components/RoundHistory';
 import { SubmitSection } from './components/SubmitSection';
 import { MatchProvider, useMatch } from './context/MatchContext';
+import type { PlayerId } from './domain/types';
 
 function ScoringView() {
-  const { match, exportRootRef, displayPlayerOrder } = useMatch();
+  const matchApi = useMatch() as ReturnType<typeof useMatch> & {
+    reorderPlayerOrder: (order: PlayerId[]) => Promise<void>;
+  };
+  const {
+    match,
+    exportRootRef,
+    displayPlayerOrder,
+    isReadOnly,
+    isEditingRound,
+    reorderPlayerOrder,
+  } = matchApi;
   if (!match) return null;
+
+  const canReorderScoreCards =
+    !isReadOnly && !isEditingRound && match.rounds.length === 0;
 
   return (
     <div className="scoring-shell">
@@ -22,11 +36,13 @@ function ScoringView() {
         <PageHeader />
         <OverviewTable match={match} />
         <div className="scroll-content">
-        <section className="section">
-          {displayPlayerOrder.map((player) => (
-            <PlayerScoreBar key={player} player={player} />
-          ))}
-        </section>
+        <PlayerScoreBarList
+          players={displayPlayerOrder}
+          canReorder={canReorderScoreCards}
+          onReorder={(nextOrder) => {
+            void reorderPlayerOrder(nextOrder);
+          }}
+        />
 
         <section className="section">
           <h2 className="section-title">
