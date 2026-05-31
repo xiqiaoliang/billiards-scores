@@ -127,7 +127,7 @@ export function OverviewTable({ match }: OverviewTableProps) {
   });
 
   return (
-    <div className="border-b border-slate-200 bg-white px-2 py-2 shadow-sm">
+    <div className="overview-table border-b border-slate-200 bg-white px-2 py-2 shadow-sm">
       <Table
         className="overflow-hidden rounded-xl"
         tableLayout="fixed"

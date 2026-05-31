@@ -26,3 +26,41 @@ body {
   background: var(--color-bg);
   -webkit-tap-highlight-color: transparent;
 }
+
+.exporting-image [data-export-hide] {
+  display: none !important;
+}
+
+.exporting-image .shadow-sm,
+.exporting-image .shadow-md,
+.exporting-image .shadow-lg,
+.exporting-image .shadow-xl,
+.exporting-image .ant-card,
+.exporting-image .ant-table,
+.exporting-image .ant-table-container,
+.exporting-image .ant-table-wrapper {
+  box-shadow: none !important;
+}
+
+.exporting-image .scroll-content {
+  overflow: visible !important;
+  height: auto !important;
+  max-height: none !important;
+  flex: none !important;
+}
+
+.exporting-image .overview-table {
+  padding-bottom: 12px;
+}
+
+.exporting-image .overview-table .overflow-hidden,
+.exporting-image .ant-table,
+.exporting-image .ant-table-container,
+.exporting-image .ant-table-wrapper {
+  overflow: visible !important;
+}
+
+.exporting-image .ant-table-cell {
+  overflow: visible !important;
+}
+

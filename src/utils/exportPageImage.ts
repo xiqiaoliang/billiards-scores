@@ -6,6 +6,7 @@ export type ExportPageImageResult =
 
 interface SavedStyle {
   el: HTMLElement;
+  display: string;
   overflow: string;
   height: string;
   maxHeight: string;
@@ -42,6 +43,7 @@ function expandForCapture(root: HTMLElement): SavedStyle[] {
   for (const el of nodes) {
     saved.push({
       el,
+      display: el.style.display,
       overflow: el.style.overflow,
       height: el.style.height,
       maxHeight: el.style.maxHeight,
@@ -59,7 +61,8 @@ function expandForCapture(root: HTMLElement): SavedStyle[] {
 }
 
 function restoreStyles(saved: SavedStyle[]) {
-  for (const { el, overflow, height, maxHeight, flex } of saved) {
+  for (const { el, display, overflow, height, maxHeight, flex } of saved) {
+    el.style.display = display;
     el.style.overflow = overflow;
     el.style.height = height;
     el.style.maxHeight = maxHeight;
@@ -69,21 +72,21 @@ function restoreStyles(saved: SavedStyle[]) {
 
 interface SavedVisibility {
   el: HTMLElement;
-  visibility: string;
+  display: string;
 }
 
 function hideExportControls(root: HTMLElement): SavedVisibility[] {
   const hidden: SavedVisibility[] = [];
   root.querySelectorAll<HTMLElement>('[data-export-hide]').forEach((el) => {
-    hidden.push({ el, visibility: el.style.visibility });
-    el.style.visibility = 'hidden';
+    hidden.push({ el, display: el.style.display });
+    el.style.display = 'none';
   });
   return hidden;
 }
 
 function restoreExportControls(hidden: SavedVisibility[]) {
-  for (const { el, visibility } of hidden) {
-    el.style.visibility = visibility;
+  for (const { el, display } of hidden) {
+    el.style.display = display;
   }
 }
 
@@ -121,6 +124,8 @@ export async function exportPageImage(
 ): Promise<ExportPageImageResult> {
   const expanded = expandForCapture(root);
   const hiddenControls = hideExportControls(root);
+  const hadExportClass = root.classList.contains('exporting-image');
+  root.classList.add('exporting-image');
 
   try {
     await new Promise<void>((resolve) => {
@@ -146,6 +151,9 @@ export async function exportPageImage(
   } finally {
     restoreExportControls(hiddenControls);
     restoreStyles(expanded);
+    if (!hadExportClass) {
+      root.classList.remove('exporting-image');
+    }
   }
 }
 

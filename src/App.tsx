@@ -34,10 +34,13 @@ function ScoringView() {
 
   return (
     <div className="flex min-h-dvh flex-col bg-slate-100">
-      <div ref={exportRootRef} className="flex flex-1 flex-col bg-white shadow-sm">
+      <div
+        ref={exportRootRef}
+        className="export-capture-root flex flex-1 flex-col bg-white shadow-sm"
+      >
         <PageHeader />
         <OverviewTable match={match} />
-        <div className="flex-1 overflow-y-auto pb-6">
+        <div className="scroll-content flex-1 overflow-y-auto pb-6">
           {!isArchived && (
             <>
               <PlayerScoreBarList
