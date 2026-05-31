@@ -9,7 +9,7 @@ import {
 import { Button, Card, Checkbox, Empty, List, Space, Spin, Tag, Typography } from 'antd';
 import { calcMatchOverview } from '../domain/scoring';
 import { useMatch } from '../context/MatchContext';
-import { formatDateTime } from '../utils/formatTime';
+import { formatDateTime, formatMatchPlayersLabel } from '../utils/formatTime';
 import { ConfirmModal } from './ConfirmModal';
 import { GlobalToast } from './GlobalToast';
 import { ImportTextModal } from './ImportTextModal';
@@ -134,10 +134,7 @@ export function MatchHistoryPage() {
               const overview = calcMatchOverview(m);
               const isCurrent = currentMatch?.id === m.id;
               const isSelected = selectedIds.has(m.id);
-              const playersLabel =
-                m.mode === 'trio'
-                  ? `${m.player1Name} / ${m.player2Name} / ${m.player3Name ?? '选手3'}`
-                  : `${m.player1Name} vs ${m.player2Name}`;
+              const playersLabel = formatMatchPlayersLabel(m);
 
               return (
                 <List.Item className="!mb-3 !p-0 last:!mb-0">

@@ -28,7 +28,17 @@ body {
 }
 
 .exporting-image [data-export-hide] {
-  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+.exporting-image .page-header-title {
+  position: absolute !important;
+  left: 50% !important;
+  top: 50% !important;
+  transform: translate(-50%, -50%) !important;
+  z-index: 1 !important;
 }
 
 .exporting-image .shadow-sm,

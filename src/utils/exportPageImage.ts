@@ -72,21 +72,32 @@ function restoreStyles(saved: SavedStyle[]) {
 
 interface SavedVisibility {
   el: HTMLElement;
-  display: string;
+  visibility: string;
+  opacity: string;
+  pointerEvents: string;
 }
 
 function hideExportControls(root: HTMLElement): SavedVisibility[] {
   const hidden: SavedVisibility[] = [];
   root.querySelectorAll<HTMLElement>('[data-export-hide]').forEach((el) => {
-    hidden.push({ el, display: el.style.display });
-    el.style.display = 'none';
+    hidden.push({
+      el,
+      visibility: el.style.visibility,
+      opacity: el.style.opacity,
+      pointerEvents: el.style.pointerEvents,
+    });
+    el.style.visibility = 'hidden';
+    el.style.opacity = '0';
+    el.style.pointerEvents = 'none';
   });
   return hidden;
 }
 
 function restoreExportControls(hidden: SavedVisibility[]) {
-  for (const { el, display } of hidden) {
-    el.style.display = display;
+  for (const { el, visibility, opacity, pointerEvents } of hidden) {
+    el.style.visibility = visibility;
+    el.style.opacity = opacity;
+    el.style.pointerEvents = pointerEvents;
   }
 }
 
@@ -132,11 +143,14 @@ export async function exportPageImage(
       requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
     });
 
+    const hiddenMarkers = new Set<HTMLElement>(root.querySelectorAll<HTMLElement>('[data-export-hide]'));
+
     const pixelRatio = Math.min(window.devicePixelRatio || 1, 3);
     const dataUrl = await toPng(root, {
       cacheBust: true,
       pixelRatio,
       backgroundColor: '#ffffff',
+      filter: (node) => !hiddenMarkers.has(node as HTMLElement) && !(node instanceof HTMLElement && node.closest('[data-export-hide]')),
     });
 
     if (needsPreviewFallback()) {
