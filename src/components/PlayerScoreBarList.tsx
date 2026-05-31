@@ -1,5 +1,6 @@
 import {
   useEffect,
+  useMemo,
   useState,
 } from 'react';
 import {
@@ -10,7 +11,6 @@ import {
   type DragEndEvent,
   type DragStartEvent,
   useSensor,
-  useSensors,
 } from '@dnd-kit/core';
 import {
   SortableContext,
@@ -53,6 +53,9 @@ function SortablePlayerScoreCard({
       style={{
         transform: CSS.Transform.toString(transform),
         transition,
+        touchAction: 'none',
+        WebkitUserSelect: 'none',
+        WebkitTouchCallout: 'none',
       }}
       className={`${canReorder ? 'touch-none select-none cursor-grab' : ''} ${
         isDragging ? 'z-10 opacity-80 cursor-grabbing' : ''
@@ -72,14 +75,20 @@ export function PlayerScoreBarList({
 }: PlayerScoreBarListProps) {
   const [visualOrder, setVisualOrder] = useState<PlayerId[]>(players);
   const [activePlayer, setActivePlayer] = useState<PlayerId | null>(null);
+  const isCoarsePointer =
+    typeof window !== 'undefined' &&
+    window.matchMedia('(pointer: coarse)').matches;
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: { distance: 6 },
-    }),
-    useSensor(TouchSensor, {
-      activationConstraint: { delay: LONG_PRESS_DELAY_MS, tolerance: 8 },
-    }),
+  const pointerSensor = useSensor(PointerSensor, {
+    activationConstraint: { distance: 6 },
+  });
+  const touchSensor = useSensor(TouchSensor, {
+    activationConstraint: { delay: LONG_PRESS_DELAY_MS, tolerance: 8 },
+  });
+
+  const sensors = useMemo(
+    () => (isCoarsePointer ? [touchSensor] : [pointerSensor]),
+    [isCoarsePointer, touchSensor, pointerSensor],
   );
 
   useEffect(() => {
