@@ -71,7 +71,7 @@ function RoundHistoryItem({
   return (
     <Card
       size="small"
-      className={`rounded-2xl border-slate-200 shadow-sm ${isArchived ? 'opacity-70' : 'cursor-pointer active:bg-slate-50'}`}
+      className={`rounded-2xl shadow-sm ${isArchived ? 'border-rose-200 bg-rose-50 shadow-none' : 'border-slate-200 cursor-pointer active:bg-slate-50'}`}
       {...longPressHandlers}
     >
       <div className="mb-2 flex items-start justify-between gap-3">
@@ -150,10 +150,10 @@ export function RoundHistory({ match }: RoundHistoryProps) {
   const computedOrders = buildComputedRoundOrders(match);
 
   return (
-    <section className={`px-4 py-3 ${isArchived ? 'opacity-70' : ''}`}>
+    <section className="px-4 py-3">
       <div className="mb-3 flex items-center justify-between gap-3">
         <Typography.Title level={5} className="!m-0">
-          逐局得分历史记录 {isArchived && <Tag color="default">已结束</Tag>}
+          逐局得分历史记录 {isArchived && <Tag color="red">已结束</Tag>}
         </Typography.Title>
         {!isArchived && rounds.length > 0 && (
           <Typography.Text className="text-xs text-slate-500">

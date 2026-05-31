@@ -28,6 +28,7 @@ function ScoringView() {
   } = matchApi;
   if (!match) return null;
 
+  const isArchived = match.status === 'archived';
   const canReorderScoreCards =
     !isReadOnly && !isEditingRound && match.rounds.length === 0;
 
@@ -37,22 +38,26 @@ function ScoringView() {
         <PageHeader />
         <OverviewTable match={match} />
         <div className="flex-1 overflow-y-auto pb-6">
-          <PlayerScoreBarList
-            players={displayPlayerOrder}
-            canReorder={canReorderScoreCards}
-            onReorder={(nextOrder) => {
-              void reorderPlayerOrder(nextOrder);
-            }}
-          />
+          {!isArchived && (
+            <>
+              <PlayerScoreBarList
+                players={displayPlayerOrder}
+                canReorder={canReorderScoreCards}
+                onReorder={(nextOrder) => {
+                  void reorderPlayerOrder(nextOrder);
+                }}
+              />
 
-          <section className="px-4 py-3">
-            <Typography.Title level={5} className="!mb-2">
-              本局待提交得分（点击标签可单独删除）
-            </Typography.Title>
-            <PendingTags />
-          </section>
+              <section className="px-4 py-3">
+                <Typography.Title level={5} className="!mb-2">
+                  本局待提交得分（点击标签可单独删除）
+                </Typography.Title>
+                <PendingTags />
+              </section>
 
-          <SubmitSection />
+              <SubmitSection />
+            </>
+          )}
           <RoundHistory match={match} />
         </div>
       </div>
