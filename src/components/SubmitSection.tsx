@@ -13,7 +13,7 @@ export function SubmitSection() {
   const canSubmit = !tagFormReadOnly && pendingTags.length > 0;
 
   return (
-    <div className="px-4">
+    <div className={isEditingRound ? '' : 'px-4'}>
       {submitError && (
         <Alert className="mb-2" type="error" message={submitError} showIcon />
       )}

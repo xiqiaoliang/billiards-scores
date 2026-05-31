@@ -22,10 +22,10 @@ export function RoundEditModal() {
     <Drawer
       open
       placement="bottom"
-      height="92vh"
+      height="600px"
       title={<Typography.Title level={4} className="!m-0">编辑第 {editingRoundNumber} 局</Typography.Title>}
-      onClose={cancelEditRound}
-      extra={<Button onClick={cancelEditRound}>取消</Button>}
+      closable={false}
+      extra={<Button type={'link'} onClick={cancelEditRound}>取消</Button>}
       destroyOnClose
     >
       <div className="flex h-full flex-col gap-3 overflow-y-auto pb-4">
