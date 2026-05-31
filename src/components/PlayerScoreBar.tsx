@@ -103,9 +103,9 @@ export function PlayerScoreBar({ player }: PlayerScoreBarProps) {
             key={type}
             disabled={scoreButtonsDisabled}
             onClick={() => addScoreTag(player, type)}
-            className="min-w-0 flex-1 px-1 text-[11px] leading-none"
+            className="min-w-0 flex-1 overflow-hidden px-1 text-[11px] leading-none"
           >
-            <span className="block truncate">
+            <span className="block whitespace-nowrap">
               {type === 'let_foul' ? SCORE_LABELS.foul : SCORE_LABELS[type]}
             </span>
           </Button>

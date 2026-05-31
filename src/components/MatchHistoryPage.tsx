@@ -72,12 +72,12 @@ export function MatchHistoryPage() {
 
   return (
     <div className="flex min-h-dvh flex-col bg-slate-100">
-      <header className="sticky top-0 z-20 flex min-h-14 items-center justify-between border-b border-slate-200 bg-white px-3 shadow-sm">
-        <Button type="link" icon={<ArrowLeftOutlined />} onClick={closeHistory} aria-label="返回" />
-        <Typography.Title level={4} className="!m-0 text-[17px]">
+      <header className="sticky top-0 z-20 grid min-h-14 grid-cols-[1fr_auto_1fr] items-center border-b border-slate-200 bg-white px-3 shadow-sm">
+        <Button type="link" icon={<ArrowLeftOutlined />} onClick={closeHistory} aria-label="返回" className="justify-self-start" />
+        <Typography.Title level={4} className="!m-0 justify-self-center text-[17px]">
           历史比赛
         </Typography.Title>
-        <Space size={0} wrap>
+        <Space size={0} wrap className="justify-self-end">
           <Button type="link" icon={<UploadOutlined />} onClick={handleImportClick} aria-label="导入" />
           <Button type="link" icon={<EditOutlined />} onClick={() => setPasteOpen(true)} aria-label="粘贴导入" />
           <Button type="link" icon={<ScanOutlined />} onClick={() => setScanOpen(true)} aria-label="扫码导入" />
@@ -174,15 +174,15 @@ export function MatchHistoryPage() {
                       <Typography.Text className="mt-1 block text-xs text-slate-500">
                         {formatDateTime(m.createdAt)} · 共 {m.rounds.length} 局
                       </Typography.Text>
-                      <div className={`mt-3 grid gap-2 text-sm ${m.mode === 'trio' ? 'grid-cols-3' : 'grid-cols-2'}`}>
-                        <Tag className="m-0 w-full justify-center rounded-full px-2 py-1 text-center" style={{ color: '#1677ff' }}>
+                      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-sm">
+                        <Tag className="m-0 inline-flex w-auto flex-none whitespace-nowrap rounded-full px-2 py-1 text-center" style={{ color: '#1677ff' }}>
                           {m.player1Name} {overview.player1.totalScore}
                         </Tag>
-                        <Tag className="m-0 w-full justify-center rounded-full px-2 py-1 text-center" style={{ color: '#f53f3f' }}>
+                        <Tag className="m-0 inline-flex w-auto flex-none whitespace-nowrap rounded-full px-2 py-1 text-center" style={{ color: '#f53f3f' }}>
                           {m.player2Name} {overview.player2.totalScore}
                         </Tag>
                         {m.mode === 'trio' && overview.player3 && (
-                          <Tag className="m-0 w-full justify-center rounded-full px-2 py-1 text-center" style={{ color: '#d48806' }}>
+                          <Tag className="m-0 inline-flex w-auto flex-none whitespace-nowrap rounded-full px-2 py-1 text-center" style={{ color: '#d48806' }}>
                             {m.player3Name ?? '选手3'} {overview.player3.totalScore}
                           </Tag>
                         )}

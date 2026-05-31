@@ -107,10 +107,10 @@ function RoundHistoryItem({
         })}
       </Space>
       <div className="flex w-full flex-wrap gap-y-1 text-xs leading-5">
-        {order.map((player) => (
+        {order.slice(0, 2).map((player, index) => (
           <Typography.Text
             key={player}
-            className={`min-w-0 ${order.length === 3 && player === order[2] ? 'basis-full text-left' : 'basis-1/2'} ${player === order[0] ? 'pr-2 text-left' : player === order[1] ? 'pl-2 text-right' : ''}`}
+            className={`block min-w-0 max-w-full ${index === 0 ? 'mr-auto text-left' : 'ml-auto text-right'}`}
             style={{ color: getPlayerColor(player) }}
           >
             {getPlayerName(match, player)}{' '}
@@ -125,6 +125,24 @@ function RoundHistoryItem({
             })}
           </Typography.Text>
         ))}
+        {order[2] && (
+          <Typography.Text
+            key={order[2]}
+            className="block w-full min-w-0 text-left"
+            style={{ color: getPlayerColor(order[2]) }}
+          >
+            {getPlayerName(match, order[2])}{' '}
+            {formatPlayerRoundSummary(round.tags, order[2], {
+              mode: match.mode,
+              playerOrder: order,
+              playerNames: {
+                1: match.player1Name,
+                2: match.player2Name,
+                3: match.player3Name ?? '选手3',
+              },
+            })}
+          </Typography.Text>
+        )}
       </div>
     </Card>
   );
