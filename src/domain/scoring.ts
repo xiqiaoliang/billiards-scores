@@ -69,7 +69,9 @@ export function calcNextPlayerOrder(
   let nextOrder = [...normalizePlayerOrder(mode, currentOrder)];
   const winTag = getRoundWinTag(tags);
   const winner = getRoundWinnerPlayer(tags, mode, nextOrder);
-  const noSwap = Boolean(winTag && (winTag.isHeiJin || winTag.isLetGan));
+  const noSwap = Boolean(
+    winTag && ((winTag.isHeiJin && !winTag.isLetGan) || (winTag.isLetGan && !winTag.isHeiJin)),
+  );
 
   if (!noSwap && winner !== null && nextOrder.length > 1) {
     const winnerIndex = nextOrder.indexOf(winner);
