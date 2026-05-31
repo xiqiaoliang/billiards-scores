@@ -12,8 +12,6 @@ import {
   formatPlayerRoundSummary,
   formatTagLabel,
   getRoundWinTag,
-  getRoundWinnerLabel,
-  getRoundWinnerPlayer,
   getPlayerName,
   sortScoreTags,
 } from '../domain/scoring';
@@ -61,16 +59,14 @@ function RoundHistoryItem({
   const longPressHandlers = useLongPress(handleEdit, { disabled: isArchived });
 
   const winTag = getRoundWinTag(round.tags);
-  const winnerPlayer = getRoundWinnerPlayer(round.tags, match.mode, order);
-  const winnerLabel = getRoundWinnerLabel(round.tags, match, order);
   const winnerColor =
-    winnerPlayer === 1
+    winTag?.player === 1
       ? PLAYER1_COLOR
-      : winnerPlayer === 2
+      : winTag?.player === 2
         ? PLAYER2_COLOR
         : PLAYER3_COLOR;
   const roundNet =
-    winnerPlayer != null ? calcRoundWinnerNet(round, winnerPlayer) : 0;
+    winTag != null ? calcRoundWinnerNet(round, winTag.player) : 0;
 
   return (
     <Card
@@ -81,9 +77,9 @@ function RoundHistoryItem({
       <div className="mb-2 flex items-start justify-between gap-3">
         <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
           <Typography.Text strong>第 {round.roundNumber} 局</Typography.Text>
-          {winnerLabel && winTag && (
+          {winTag && (
             <Typography.Text style={{ color: winnerColor }}>
-              {winnerLabel} · 净分{formatNetScore(roundNet)}
+              {formatTagLabel(getPlayerName(match, winTag.player), winTag)} · {formatNetScore(roundNet)}
             </Typography.Text>
           )}
         </div>
