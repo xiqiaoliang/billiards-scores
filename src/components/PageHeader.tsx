@@ -15,7 +15,7 @@ export function PageHeader() {
 
   return (
     <header className="grid min-h-14 grid-cols-[1fr_auto_1fr] items-center border-b border-slate-200 bg-white px-3 shadow-sm">
-      <Space size={4} className="justify-self-start">
+      <Space size={4} className="justify-self-start" data-export-hide>
         <Button type="text" onClick={() => void openHistory()}>
           历史
         </Button>
@@ -26,7 +26,7 @@ export function PageHeader() {
       <Typography.Title level={4} className="!m-0 justify-self-center text-center !text-[17px]">
         台球追分记分器
       </Typography.Title>
-      <div className="flex items-center justify-self-end justify-end gap-1">
+      <div className="flex items-center justify-self-end justify-end gap-1" data-export-hide>
         {isReadOnly ? (
           <Dropdown
             menu={{
