@@ -66,14 +66,23 @@ export function OverviewTable({ match }: OverviewTableProps) {
       key: 'player',
       width: 68,
       align: 'center',
+      onCell: () => ({
+        style: {
+          padding: 0,
+          textAlign: 'center',
+          verticalAlign: 'middle',
+        },
+      }),
       render: (_: unknown, record: { player: PlayerId; color: string; name: string }) => (
-        <PlayerNameEditor
-          name={record.name}
-          color={record.color}
-          editable={!isReadOnly}
-          className="block w-full truncate text-center text-sm font-semibold leading-5"
-          onNameChange={(n) => setPlayerName(record.player, n)}
-        />
+        <div className="flex h-full w-full items-center justify-center">
+          <PlayerNameEditor
+            name={record.name}
+            color={record.color}
+            editable={!isReadOnly}
+            className="block w-full truncate text-center text-sm font-semibold leading-5"
+            onNameChange={(n) => setPlayerName(record.player, n)}
+          />
+        </div>
       ),
     },
     { title: '犯', dataIndex: 'foulCount', key: 'foulCount', width: 36, align: 'center' },

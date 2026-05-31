@@ -10,24 +10,38 @@ function generateId(): string {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 }
 
+function getDefaultPlayerNames(mode: MatchMode, match?: MatchRecord): Pick<MatchRecord, 'player1Name' | 'player2Name' | 'player3Name'> {
+  return {
+    player1Name: match?.player1Name || DEFAULT_PLAYER1_NAME,
+    player2Name: match?.player2Name || DEFAULT_PLAYER2_NAME,
+    player3Name: mode === 'trio' ? match?.player3Name || DEFAULT_PLAYER3_NAME : undefined,
+  };
+}
+
 export function createMatchRecord(
   now = Date.now(),
   mode: MatchMode = 'duel',
+  match?: MatchRecord,
 ): MatchRecord {
+  const playerNames = getDefaultPlayerNames(mode, match);
+
   return {
     id: generateId(),
     mode,
     status: 'in_progress',
     createdAt: now,
-    player1Name: DEFAULT_PLAYER1_NAME,
-    player2Name: DEFAULT_PLAYER2_NAME,
-    player3Name: mode === 'trio' ? DEFAULT_PLAYER3_NAME : undefined,
+    ...playerNames,
     currentPlayerOrder: mode === 'trio' ? [1, 2, 3] : [1, 2],
     rounds: [],
     currentRoundNumber: 1,
     currentRoundStartTime: now,
     syncStatus: 'local',
   };
+}
+
+export async function getLatestMatchByMode(mode: MatchMode): Promise<MatchRecord | undefined> {
+  const matches = await getAllMatches();
+  return matches.find((match) => match.mode === mode);
 }
 
 export async function getLatestInProgressMatch(): Promise<MatchRecord | undefined> {
@@ -44,7 +58,8 @@ export async function saveMatch(match: MatchRecord): Promise<void> {
 }
 
 export async function createAndSaveMatch(mode: MatchMode = 'duel'): Promise<MatchRecord> {
-  const match = createMatchRecord(Date.now(), mode);
+  const previousMatch = await getLatestMatchByMode(mode);
+  const match = createMatchRecord(Date.now(), mode, previousMatch);
   await saveMatch(match);
   return match;
 }
@@ -65,9 +80,6 @@ export async function getMatchById(id: string): Promise<MatchRecord | undefined>
   return db.matches.get(id);
 }
 
-export async function deleteMatch(id: string): Promise<void> {
-  await db.matches.delete(id);
-}
 
 export async function deleteMatches(ids: string[]): Promise<void> {
   if (ids.length === 0) return;
