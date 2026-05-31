@@ -1,4 +1,4 @@
-import { VALIDATION_MESSAGES, WIN_TYPES } from './constants';
+import { SERVING_ONLY_TYPES, VALIDATION_MESSAGES, WIN_TYPES } from './constants';
 import type {
   MatchMode,
   PendingTag,
@@ -17,6 +17,32 @@ function hasWinTypeGlobal(tags: PendingTag[]): boolean {
 
 export function hasGolden9Exclusive(tags: PendingTag[]): boolean {
   return tags.some((t) => t.type === 'golden_9');
+}
+
+export function isServingPlayer(player: PlayerId, playerOrder?: PlayerId[]): boolean {
+  return (playerOrder?.[0] ?? player) === player;
+}
+
+export function validateServingOnlyTag(
+  player: PlayerId,
+  type: ScoreItemType,
+  playerOrder?: PlayerId[],
+): ValidationResult {
+  if (!SERVING_ONLY_TYPES.includes(type)) {
+    return { ok: true };
+  }
+
+  if (!isServingPlayer(player, playerOrder)) {
+    return {
+      ok: false,
+      message:
+        type === 'break_foul'
+          ? VALIDATION_MESSAGES.breakFoulServingOnly
+          : VALIDATION_MESSAGES.golden9ServingOnly,
+    };
+  }
+
+  return { ok: true };
 }
 
 type ScoreTagPayload = Omit<PendingTag, 'id'>;
@@ -56,11 +82,17 @@ export function resolveScoreTagAction(
   isLetGan: boolean,
   isHeiJin: boolean,
   mode: MatchMode = 'duel',
+  playerOrder?: PlayerId[],
 ): ScoreTagAction {
   const tag: ScoreTagPayload = { player, type, isLetGan, isHeiJin };
 
   if (hasGolden9Exclusive(pendingTags) && type !== 'golden_9') {
     return { kind: 'error', message: VALIDATION_MESSAGES.golden9Exclusive };
+  }
+
+  const servingValidation = validateServingOnlyTag(player, type, playerOrder);
+  if (!servingValidation.ok) {
+    return { kind: 'error', message: servingValidation.message };
   }
 
   if (mode === 'trio') {
@@ -114,9 +146,15 @@ export function validateAddTag(
   type: ScoreItemType,
   mode: MatchMode = 'duel',
   isLetGan = false,
+  playerOrder?: PlayerId[],
 ): ValidationResult {
   if (hasGolden9Exclusive(pendingTags) && type !== 'golden_9') {
     return { ok: false, message: VALIDATION_MESSAGES.golden9Exclusive };
+  }
+
+  const servingValidation = validateServingOnlyTag(_player, type, playerOrder);
+  if (!servingValidation.ok) {
+    return servingValidation;
   }
 
   if (!isLetGan && type === 'let_foul') {
@@ -151,6 +189,7 @@ export function validateAddTag(
 export function validateSubmit(
   pendingTags: PendingTag[],
   mode: MatchMode = 'duel',
+  playerOrder?: PlayerId[],
 ): ValidationResult {
   if (pendingTags.length === 0) {
     return { ok: false, message: '' };
@@ -184,6 +223,13 @@ export function validateSubmit(
       if (!tag.isLetGan && tag.type === 'let_foul') {
         return { ok: false, message: '让杆犯规仅在让杆状态可选' };
       }
+    }
+  }
+
+  for (const tag of pendingTags) {
+    const servingValidation = validateServingOnlyTag(tag.player, tag.type, playerOrder);
+    if (!servingValidation.ok) {
+      return servingValidation;
     }
   }
 

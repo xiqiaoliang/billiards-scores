@@ -39,7 +39,7 @@ import type {
   ScoreItemType,
   SessionState,
 } from '../domain/types';
-import { validateSubmit, resolveScoreTagAction } from '../domain/validators';
+import { resolveScoreTagAction, validateServingOnlyTag, validateSubmit } from '../domain/validators';
 import {
   archiveMatch,
   createAndSaveMatch,
@@ -308,8 +308,8 @@ interface MatchContextValue {
   isReadOnly: boolean;
   mode: MatchMode;
   displayPlayerOrder: PlayerId[];
-  addScoreTag: (player: PlayerId, type: ScoreItemType) => void;
-  addGolden9Tag: (player: PlayerId) => void;
+  addScoreTag: (player: PlayerId, type: ScoreItemType, playerOrder?: PlayerId[]) => void;
+  addGolden9Tag: (player: PlayerId, playerOrder?: PlayerId[]) => void;
   removePendingTag: (id: string) => void;
   setLetGan: (player: PlayerId, checked: boolean) => void;
   setHeiJin: (player: PlayerId, checked: boolean) => void;
@@ -433,7 +433,7 @@ export function MatchProvider({ children }: { children: ReactNode }) {
   const tagFormReadOnly = isReadOnly && !isEditingRound;
 
   const addScoreTag = useCallback(
-    (player: PlayerId, type: ScoreItemType) => {
+    (player: PlayerId, type: ScoreItemType, playerOrder?: PlayerId[]) => {
       if (!state.match || tagFormReadOnly) return;
 
       const tagSession =
@@ -461,6 +461,7 @@ export function MatchProvider({ children }: { children: ReactNode }) {
         isLetGan,
         isHeiJin,
         mode,
+        playerOrder,
       );
 
       if (resolved.kind === 'noop') {
@@ -498,7 +499,7 @@ export function MatchProvider({ children }: { children: ReactNode }) {
   );
 
   const addGolden9Tag = useCallback(
-    (player: PlayerId) => {
+    (player: PlayerId, playerOrder?: PlayerId[]) => {
       if (!state.match || tagFormReadOnly) return;
 
       const tagSession =
@@ -521,6 +522,12 @@ export function MatchProvider({ children }: { children: ReactNode }) {
 
       if (mode === 'trio' && isLetGan) {
         dispatch({ type: 'SET_TOAST', message: '黄金9不支持让杆' });
+        return;
+      }
+
+      const servingValidation = validateServingOnlyTag(player, 'golden_9', playerOrder);
+      if (!servingValidation.ok) {
+        dispatch({ type: 'SET_TOAST', message: servingValidation.message });
         return;
       }
 
@@ -624,7 +631,12 @@ export function MatchProvider({ children }: { children: ReactNode }) {
   const submitRound = useCallback(async () => {
     if (!state.match || isReadOnly) return;
 
-    const validation = validateSubmit(state.session.pendingTags, state.match.mode);
+    const currentOrder: PlayerId[] = state.match.currentPlayerOrder && state.match.currentPlayerOrder.length > 0
+      ? [...state.match.currentPlayerOrder]
+      : state.match.mode === 'trio'
+        ? [1, 2, 3]
+        : [1, 2];
+    const validation = validateSubmit(state.session.pendingTags, state.match.mode, currentOrder);
     if (!validation.ok) {
       if (validation.message) {
         dispatch({ type: 'SET_SUBMIT_ERROR', message: validation.message });
@@ -642,11 +654,6 @@ export function MatchProvider({ children }: { children: ReactNode }) {
       state.match.currentPlayerOrder,
     );
 
-    const defaultOrder: PlayerId[] = state.match.mode === 'trio' ? [1, 2, 3] : [1, 2];
-    const currentOrder =
-      state.match.currentPlayerOrder && state.match.currentPlayerOrder.length > 0
-        ? [...state.match.currentPlayerOrder]
-        : defaultOrder;
     const nextPlayerOrder = calcNextPlayerOrder(
       state.match.mode,
       currentOrder,
@@ -688,7 +695,12 @@ export function MatchProvider({ children }: { children: ReactNode }) {
   const saveEditRound = useCallback(async () => {
     if (!state.match || state.editingRoundNumber === null) return;
 
-    const validation = validateSubmit(state.editSession.pendingTags, state.match.mode);
+    const existing = state.match.rounds.find(
+      (r) => r.roundNumber === state.editingRoundNumber,
+    );
+    if (!existing) return;
+
+    const validation = validateSubmit(state.editSession.pendingTags, state.match.mode, existing.playerOrder);
     if (!validation.ok) {
       if (validation.message) {
         dispatch({ type: 'SET_SUBMIT_ERROR', message: validation.message });
@@ -696,10 +708,6 @@ export function MatchProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    const existing = state.match.rounds.find(
-      (r) => r.roundNumber === state.editingRoundNumber,
-    );
-    if (!existing) return;
 
     const updatedRound = rebuildRoundRecord(
       existing,

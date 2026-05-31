@@ -37,9 +37,11 @@ function sameOrder(a: PlayerId[], b: PlayerId[]): boolean {
 
 function SortablePlayerScoreCard({
   player,
+  playerOrder,
   canReorder,
 }: {
   player: PlayerId;
+  playerOrder: PlayerId[];
   canReorder: boolean;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
@@ -58,7 +60,7 @@ function SortablePlayerScoreCard({
       {...attributes}
       {...listeners}
     >
-      <PlayerScoreBar player={player} />
+      <PlayerScoreBar player={player} playerOrder={playerOrder} />
     </div>
   );
 }
@@ -127,7 +129,12 @@ export function PlayerScoreBarList({
         <SortableContext items={visualOrder} strategy={verticalListSortingStrategy}>
           <div className="flex flex-col gap-3">
             {visualOrder.map((player) => (
-              <SortablePlayerScoreCard key={player} player={player} canReorder={canReorder} />
+              <SortablePlayerScoreCard
+                key={player}
+                player={player}
+                playerOrder={visualOrder}
+                canReorder={canReorder}
+              />
             ))}
           </div>
         </SortableContext>

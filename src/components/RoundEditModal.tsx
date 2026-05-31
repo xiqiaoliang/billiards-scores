@@ -33,7 +33,7 @@ export function RoundEditModal() {
           修改计分标签后点击保存，本局时间不变。
         </Typography.Paragraph>
         {editingPlayerOrder.map((player) => (
-          <PlayerScoreBar key={player} player={player} />
+          <PlayerScoreBar key={player} player={player} playerOrder={editingPlayerOrder} />
         ))}
         <Typography.Title level={5} className="!mb-0 !mt-2">
           本局得分（点击标签可删除）

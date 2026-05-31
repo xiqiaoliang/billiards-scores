@@ -72,6 +72,8 @@ export const WIN_TYPES: ScoreItemType[] = [
   'big_gold',
 ];
 
+export const SERVING_ONLY_TYPES: ScoreItemType[] = ['break_foul', 'golden_9'];
+
 /** 标签展示/存储顺序：开球犯规最前，取胜项最后 */
 export const TAG_DISPLAY_ORDER: Record<ScoreItemType, number> = {
   break_foul: 0,
@@ -95,6 +97,8 @@ export const VALIDATION_MESSAGES = {
   winGlobal: '本局取胜项只能有一名选手获得',
   winRequired: '本局须选择取胜项（普胜、黄金9、小金或大金）',
   golden9Exclusive: '黄金9为独占得分，不可再添加其他计分项',
+  breakFoulServingOnly: '开球犯规仅可由当前发球位选手选择',
+  golden9ServingOnly: '黄金9仅可由当前发球位选手选择',
 } as const;
 
 export const ARCHIVE_CONFIRM_TEXT =
