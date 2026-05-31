@@ -29,10 +29,6 @@ function getPlayersByMode(mode: MatchMode): PlayerId[] {
   return mode === 'trio' ? [1, 2, 3] : [1, 2];
 }
 
-function getRoundMode(round: RoundRecord): MatchMode {
-  return round.player3 ? 'trio' : 'duel';
-}
-
 function getPlayerStatsFromRound(round: RoundRecord, player: PlayerId): RoundPlayerStats {
   if (player === 1) return round.player1;
   if (player === 2) return round.player2;
@@ -650,13 +646,6 @@ export function calcRoundWinnerNet(
   round: RoundRecord,
   winnerPlayer: PlayerId,
 ): number {
-  const mode = getRoundMode(round);
-  if (mode === 'trio') {
-    return getPlayerStatsFromRound(round, winnerPlayer).roundTotal;
-  }
-
-  const { player1, player2 } = round;
-  return winnerPlayer === 1
-    ? player1.roundTotal - player2.roundTotal
-    : player2.roundTotal - player1.roundTotal;
+  return getPlayerStatsFromRound(round, winnerPlayer).roundTotal;
 }
+
