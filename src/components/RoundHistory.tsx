@@ -1,4 +1,5 @@
 import { useCallback } from 'react';
+import { Card, Space, Tag, Typography } from 'antd';
 import {
   PLAYER1_COLOR,
   PLAYER2_COLOR,
@@ -59,7 +60,6 @@ function RoundHistoryItem({
 
   const longPressHandlers = useLongPress(handleEdit, { disabled: isArchived });
 
-  const statsLayoutClass = order.length === 3 ? 'round-item__stats--trio' : 'round-item__stats--duel';
   const winTag = getRoundWinTag(round.tags);
   const winnerPlayer = getRoundWinnerPlayer(round.tags, match.mode, order);
   const winnerLabel = getRoundWinnerLabel(round.tags, match, order);
@@ -73,48 +73,42 @@ function RoundHistoryItem({
     winnerPlayer != null ? calcRoundWinnerNet(round, winnerPlayer) : 0;
 
   return (
-    <div
-      className={`round-item${isArchived ? '' : ' round-item--editable'}`}
+    <Card
+      size="small"
+      className={`mb-3 rounded-2xl border-slate-200 shadow-sm last:mb-0 ${isArchived ? 'opacity-70' : 'cursor-pointer active:bg-slate-50'}`}
       {...longPressHandlers}
     >
-      <div className="round-item__header">
-        <div className="round-item__header-left">
-          <span className="round-item__round-no">第 {round.roundNumber} 局</span>
+      <div className="mb-2 flex items-start justify-between gap-3">
+        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+          <Typography.Text strong>第 {round.roundNumber} 局</Typography.Text>
           {winnerLabel && winTag && (
-            <span
-              className="round-item__header-info"
-              style={{ color: winnerColor }}
-            >
+            <Typography.Text style={{ color: winnerColor }}>
               {winnerLabel} · 净分{formatNetScore(roundNet)}
-            </span>
+            </Typography.Text>
           )}
         </div>
-        <span className="round-item__header-time">
-          {formatRoundTimeLine(
-            round.startTime,
-            round.endTime,
-            round.durationMs,
-          )}
-        </span>
+        <Typography.Text className="text-right text-xs text-slate-500">
+          {formatRoundTimeLine(round.startTime, round.endTime, round.durationMs)}
+        </Typography.Text>
       </div>
-      <div className="round-item__tags">
+      <Space className="mb-2 flex-wrap" size={[6, 6]}>
         {sortScoreTags(round.tags).map((tag) => {
           const name = getPlayerName(match, tag.player);
           const color = getPlayerColor(tag.player);
           return (
-            <span
+            <Tag
               key={tag.id}
-              className="pending-tag pending-tag--readonly"
+              className="mr-0 rounded-full px-3 py-1"
               style={{ borderColor: color, color }}
             >
               {formatTagLabel(name, tag)}
-            </span>
+            </Tag>
           );
         })}
-      </div>
-      <div className={`round-item__stats ${statsLayoutClass}`}>
+      </Space>
+      <div className={`grid gap-2 text-xs leading-5 ${order.length === 3 ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-2'}`}>
         {order.map((player) => (
-          <span key={player} style={{ color: getPlayerColor(player) }}>
+          <Typography.Text key={player} style={{ color: getPlayerColor(player) }}>
             {getPlayerName(match, player)}{' '}
             {formatPlayerRoundSummary(round.tags, player, {
               mode: match.mode,
@@ -125,10 +119,10 @@ function RoundHistoryItem({
                 3: match.player3Name ?? '选手3',
               },
             })}
-          </span>
+          </Typography.Text>
         ))}
       </div>
-    </div>
+    </Card>
   );
 }
 
@@ -138,20 +132,21 @@ export function RoundHistory({ match }: RoundHistoryProps) {
   const computedOrders = buildComputedRoundOrders(match);
 
   return (
-    <section
-      className={`section round-history${isArchived ? ' archived' : ''}`}
-    >
-      <div className="round-history__header">
-        <h2 className="section-title">
-          逐局得分历史记录
-          {isArchived && <span className="round-history__badge">已结束</span>}
-        </h2>
+    <section className={`px-4 py-3 ${isArchived ? 'opacity-70' : ''}`}>
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <Typography.Title level={5} className="!m-0">
+          逐局得分历史记录 {isArchived && <Tag color="default">已结束</Tag>}
+        </Typography.Title>
         {!isArchived && rounds.length > 0 && (
-          <p className="round-history__tip">长按某一局可修改该局得分</p>
+          <Typography.Text className="text-xs text-slate-500">
+            长按某一局可修改该局得分
+          </Typography.Text>
         )}
       </div>
       {rounds.length === 0 ? (
-        <p className="round-history__empty">暂无历史记录</p>
+        <Typography.Text className="block py-2 text-sm text-slate-500">
+          暂无历史记录
+        </Typography.Text>
       ) : (
         rounds.map((round) => (
           <RoundHistoryItem

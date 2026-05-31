@@ -1,4 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ChangeEvent, type KeyboardEvent } from 'react';
+import { Button, Input, Typography } from 'antd';
+import type { InputRef } from 'antd';
 interface PlayerNameEditorProps {
   name: string;
   color: string;
@@ -16,7 +18,7 @@ export function PlayerNameEditor({
 }: PlayerNameEditorProps) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(name);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<InputRef>(null);
 
   useEffect(() => {
     if (!editing) setDraft(name);
@@ -33,42 +35,44 @@ export function PlayerNameEditor({
 
   if (!editable) {
     return (
-      <span className={className} style={{ color }}>
+      <Typography.Text className={className} style={{ color }}>
         {name}
-      </span>
+      </Typography.Text>
     );
   }
 
   if (editing) {
     return (
-      <input
+      <Input
         ref={inputRef}
-        className={`player-name-input ${className}`}
+        className={className}
         style={{ color }}
         value={draft}
         maxLength={12}
-        onChange={(e) => setDraft(e.target.value)}
+        onChange={(e: ChangeEvent<HTMLInputElement>) => setDraft(e.target.value)}
         onBlur={commit}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') commit();
+        onPressEnter={commit}
+        onKeyDown={(e: KeyboardEvent<HTMLInputElement>) => {
           if (e.key === 'Escape') {
             setDraft(name);
             setEditing(false);
           }
         }}
+        variant="borderless"
+        size="small"
       />
     );
   }
 
   return (
-    <button
-      type="button"
-      className={`player-name-btn ${className}`}
+    <Button
+      type="text"
+      className={className}
       style={{ color }}
       onClick={() => setEditing(true)}
       title="点击修改选手名称"
     >
       {name}
-    </button>
+    </Button>
   );
 }

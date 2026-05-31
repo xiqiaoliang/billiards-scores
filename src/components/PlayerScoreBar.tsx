@@ -6,6 +6,7 @@ import {
   REGULAR_BUTTONS,
   SCORE_LABELS,
 } from '../domain/constants';
+import { Button, Card, Checkbox, Space, Typography } from 'antd';
 import { useMatch } from '../context/MatchContext';
 import { hasGolden9Exclusive } from '../domain/validators';
 import type { PlayerId, ScoreItemType } from '../domain/types';
@@ -66,63 +67,48 @@ export function PlayerScoreBar({ player }: PlayerScoreBarProps) {
   const showGolden9Button = !letGanChecked;
 
   return (
-    <div className="player-score-bar">
-      <div className="player-score-bar__head">
-        <span className="player-score-bar__name" style={{ color }}>
+    <Card className="mb-3 rounded-2xl border-slate-200 shadow-sm last:mb-0">
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <Typography.Text className="text-base font-semibold" style={{ color }}>
           {name}
-        </span>
-        <label className="player-score-bar__letgan">
-          <input
-            type="checkbox"
-            checked={letGanChecked}
-            disabled={tagFormReadOnly}
-            onChange={(e) => setLetGan(player, e.target.checked)}
-          />
+        </Typography.Text>
+        <Checkbox
+          checked={letGanChecked}
+          disabled={tagFormReadOnly}
+          onChange={(e) => setLetGan(player, e.target.checked)}
+        >
           让杆得分
-        </label>
-        <label className="player-score-bar__letgan">
-          <input
-            type="checkbox"
-            checked={heiJinChecked}
-            disabled={tagFormReadOnly}
-            onChange={(e) => setHeiJin(player, e.target.checked)}
-          />
+        </Checkbox>
+        <Checkbox
+          checked={heiJinChecked}
+          disabled={tagFormReadOnly}
+          onChange={(e) => setHeiJin(player, e.target.checked)}
+        >
           黑金
-        </label>
-        <div className="player-score-bar__win-btns">
+        </Checkbox>
+        <Space className="ml-auto" size={8} wrap>
           {showGolden9Button && (
-            <button
-              type="button"
-              className="player-score-bar__golden9"
-              disabled={scoreButtonsDisabled}
-              onClick={() => addGolden9Tag(player)}
-            >
+            <Button disabled={scoreButtonsDisabled} onClick={() => addGolden9Tag(player)}>
               {SCORE_LABELS.golden_9}
-            </button>
+            </Button>
           )}
-          <button
-            type="button"
-            className="player-score-bar__golden9"
-            disabled={scoreButtonsDisabled}
-            onClick={() => addScoreTag(player, 'big_gold')}
-          >
+          <Button disabled={scoreButtonsDisabled} onClick={() => addScoreTag(player, 'big_gold')}>
             {SCORE_LABELS.big_gold}
-          </button>
-        </div>
+          </Button>
+        </Space>
       </div>
-      <div className="score-buttons">
+      <Space className="w-full" size={8} wrap>
         {buttons.map((type) => (
-          <button
+          <Button
             key={type}
-            type="button"
-            className="score-btn"
             disabled={scoreButtonsDisabled}
             onClick={() => addScoreTag(player, type)}
+            className="min-w-0 flex-1"
           >
             {type === 'let_foul' ? SCORE_LABELS.foul : SCORE_LABELS[type]}
-          </button>
+          </Button>
         ))}
-      </div>
-    </div>
+      </Space>
+    </Card>
   );
 }

@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import type { ChangeEvent } from 'react';
+import { Button, Modal, Space, Input, Typography } from 'antd';
 
 interface ImportTextModalProps {
   onImport: (text: string) => void;
@@ -15,38 +17,27 @@ export function ImportTextModal({ onImport, onClose }: ImportTextModalProps) {
   };
 
   return (
-    <div
-      className="import-text-overlay"
-      role="dialog"
-      aria-modal="true"
-      aria-label="粘贴导入数据"
-    >
-      <div className="import-text">
-        <p className="import-text__hint">
+    <Modal open title="粘贴导入数据" onCancel={onClose} centered destroyOnClose footer={null}>
+      <Space direction="vertical" className="w-full" size={12}>
+        <Typography.Paragraph className="!mb-0 text-sm leading-6 text-slate-600">
           粘贴以 bs:v3:/bs:v2: 开头的比赛数据（从二维码解码软件复制）
-        </p>
-        <textarea
-          className="import-text__input"
+        </Typography.Paragraph>
+        <Input.TextArea
           value={text}
-          onChange={(e) => setText(e.target.value)}
+          onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setText(e.target.value)}
           placeholder="bs:v3:..."
-          rows={6}
+          autoSize={{ minRows: 6, maxRows: 10 }}
           autoFocus
         />
-        <div className="import-text__actions">
-          <button type="button" className="import-text__btn" onClick={onClose}>
+        <Space className="w-full" size={8}>
+          <Button block onClick={onClose}>
             取消
-          </button>
-          <button
-            type="button"
-            className="import-text__btn import-text__btn--primary"
-            onClick={handleSubmit}
-            disabled={!text.trim()}
-          >
+          </Button>
+          <Button block type="primary" onClick={handleSubmit} disabled={!text.trim()}>
             导入
-          </button>
-        </div>
-      </div>
-    </div>
+          </Button>
+        </Space>
+      </Space>
+    </Modal>
   );
 }

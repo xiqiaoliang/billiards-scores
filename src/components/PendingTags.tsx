@@ -1,17 +1,19 @@
 import { PLAYER1_COLOR, PLAYER2_COLOR, PLAYER3_COLOR } from '../domain/constants';
 import { formatTagLabel, sortScoreTags } from '../domain/scoring';
 import { useMatch } from '../context/MatchContext';
+import type { MouseEvent as ReactMouseEvent } from 'react';
+import { Empty, Space, Tag, Typography } from 'antd';
 
 export function PendingTags() {
   const { activeSession, tagFormReadOnly, removePendingTag } = useMatch();
   const { pendingTags, player1Name, player2Name, player3Name } = activeSession;
 
   return (
-    <div className="pending-tags">
+    <div className="rounded-2xl bg-slate-50 px-3 py-2">
       {pendingTags.length === 0 ? (
-        <span className="pending-tags__empty">暂无得分</span>
+        <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无得分" />
       ) : (
-        <div className="pending-tags__list">
+        <Space wrap size={[8, 8]}>
           {sortScoreTags(pendingTags).map((tag) => {
             const name =
               tag.player === 1
@@ -26,25 +28,21 @@ export function PendingTags() {
                   ? PLAYER2_COLOR
                   : PLAYER3_COLOR;
             return (
-              <span
+              <Tag
                 key={tag.id}
-                className={`pending-tag${tagFormReadOnly ? ' pending-tag--readonly' : ''}`}
+                className="mr-0 cursor-pointer rounded-full px-3 py-1 text-sm"
+                closable={!tagFormReadOnly}
                 style={{ borderColor: color, color }}
-                onClick={() => !tagFormReadOnly && removePendingTag(tag.id)}
-                role={tagFormReadOnly ? undefined : 'button'}
-                tabIndex={tagFormReadOnly ? undefined : 0}
-                onKeyDown={(e) => {
-                  if (!tagFormReadOnly && (e.key === 'Enter' || e.key === ' ')) {
-                    e.preventDefault();
-                    removePendingTag(tag.id);
-                  }
+                onClose={(e: ReactMouseEvent<HTMLElement>) => {
+                  e.preventDefault();
+                  removePendingTag(tag.id);
                 }}
               >
-                {formatTagLabel(name, tag)}
-              </span>
+                <Typography.Text style={{ color }}>{formatTagLabel(name, tag)}</Typography.Text>
+              </Tag>
             );
           })}
-        </div>
+        </Space>
       )}
     </div>
   );

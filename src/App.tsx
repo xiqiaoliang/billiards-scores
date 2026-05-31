@@ -12,6 +12,7 @@ import { RoundHistory } from './components/RoundHistory';
 import { SubmitSection } from './components/SubmitSection';
 import { MatchProvider, useMatch } from './context/MatchContext';
 import type { PlayerId } from './domain/types';
+import { Spin, Typography } from 'antd';
 
 function ScoringView() {
   const matchApi = useMatch() as ReturnType<typeof useMatch> & {
@@ -31,28 +32,28 @@ function ScoringView() {
     !isReadOnly && !isEditingRound && match.rounds.length === 0;
 
   return (
-    <div className="scoring-shell">
-      <div ref={exportRootRef} className="export-capture-root">
+    <div className="flex min-h-dvh flex-col bg-slate-100">
+      <div ref={exportRootRef} className="flex flex-1 flex-col bg-white shadow-sm">
         <PageHeader />
         <OverviewTable match={match} />
-        <div className="scroll-content">
-        <PlayerScoreBarList
-          players={displayPlayerOrder}
-          canReorder={canReorderScoreCards}
-          onReorder={(nextOrder) => {
-            void reorderPlayerOrder(nextOrder);
-          }}
-        />
+        <div className="flex-1 overflow-y-auto pb-6">
+          <PlayerScoreBarList
+            players={displayPlayerOrder}
+            canReorder={canReorderScoreCards}
+            onReorder={(nextOrder) => {
+              void reorderPlayerOrder(nextOrder);
+            }}
+          />
 
-        <section className="section">
-          <h2 className="section-title">
-            本局待提交得分（点击标签可单独删除）
-          </h2>
-          <PendingTags />
-        </section>
+          <section className="px-4 py-3">
+            <Typography.Title level={5} className="!mb-2">
+              本局待提交得分（点击标签可单独删除）
+            </Typography.Title>
+            <PendingTags />
+          </section>
 
-        <SubmitSection />
-        <RoundHistory match={match} />
+          <SubmitSection />
+          <RoundHistory match={match} />
         </div>
       </div>
       <ConfirmModal />
@@ -68,19 +69,23 @@ function AppContent() {
   const { loading, match, view } = useMatch();
 
   if (loading || !match) {
-    return <div className="app-loading">加载中...</div>;
+    return (
+      <div className="flex min-h-dvh items-center justify-center bg-slate-100 text-slate-500">
+        <Spin size="large" tip="加载中..." />
+      </div>
+    );
   }
 
   if (view === 'history') {
     return (
-      <div className="app">
+      <div className="flex min-h-dvh flex-col bg-slate-100">
         <MatchHistoryPage />
       </div>
     );
   }
 
   return (
-    <div className="app">
+    <div className="flex min-h-dvh flex-col bg-slate-100">
       <ScoringView />
     </div>
   );

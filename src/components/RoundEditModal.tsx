@@ -3,6 +3,7 @@ import { buildComputedRoundOrders } from '../domain/scoring';
 import { PendingTags } from './PendingTags';
 import { PlayerScoreBar } from './PlayerScoreBar';
 import { SubmitSection } from './SubmitSection';
+import { Button, Drawer, Typography } from 'antd';
 
 export function RoundEditModal() {
   const { editingRoundNumber, cancelEditRound, displayPlayerOrder, match } = useMatch();
@@ -18,31 +19,28 @@ export function RoundEditModal() {
       : displayPlayerOrder);
 
   return (
-    <div className="round-edit-overlay" role="dialog" aria-modal="true">
-      <div className="round-edit-sheet">
-        <header className="round-edit-sheet__header">
-          <button
-            type="button"
-            className="btn-text"
-            onClick={cancelEditRound}
-          >
-            取消
-          </button>
-          <h3 className="round-edit-sheet__title">编辑第 {editingRoundNumber} 局</h3>
-          <span className="round-edit-sheet__spacer" />
-        </header>
-        <div className="round-edit-sheet__body">
-          <p className="round-edit-sheet__hint">
-            修改计分标签后点击保存，本局时间不变。
-          </p>
-          {editingPlayerOrder.map((player) => (
-            <PlayerScoreBar key={player} player={player} />
-          ))}
-          <h4 className="round-edit-sheet__subtitle">本局得分（点击标签可删除）</h4>
-          <PendingTags />
-          <SubmitSection />
-        </div>
+    <Drawer
+      open
+      placement="bottom"
+      height="92vh"
+      title={<Typography.Title level={4} className="!m-0">编辑第 {editingRoundNumber} 局</Typography.Title>}
+      onClose={cancelEditRound}
+      extra={<Button onClick={cancelEditRound}>取消</Button>}
+      destroyOnClose
+    >
+      <div className="flex h-full flex-col gap-3 overflow-y-auto pb-4">
+        <Typography.Paragraph className="!mb-0 text-sm text-slate-500">
+          修改计分标签后点击保存，本局时间不变。
+        </Typography.Paragraph>
+        {editingPlayerOrder.map((player) => (
+          <PlayerScoreBar key={player} player={player} />
+        ))}
+        <Typography.Title level={5} className="!mb-0 !mt-2">
+          本局得分（点击标签可删除）
+        </Typography.Title>
+        <PendingTags />
+        <SubmitSection />
       </div>
-    </div>
+    </Drawer>
   );
 }

@@ -1,4 +1,5 @@
 import { useMatch } from '../context/MatchContext';
+import { Alert } from 'antd';
 
 export function GlobalToast() {
   const { activeSession } = useMatch();
@@ -7,8 +8,8 @@ export function GlobalToast() {
   if (!toastMessage) return null;
 
   return (
-    <div className="global-toast" role="alert">
-      {toastMessage}
+    <div className="pointer-events-none fixed bottom-6 left-1/2 z-[120] -translate-x-1/2 px-4">
+      <Alert message={toastMessage} type="info" showIcon className="shadow-lg" />
     </div>
   );
 }

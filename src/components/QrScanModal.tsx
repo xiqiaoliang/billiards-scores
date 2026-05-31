@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Html5Qrcode } from 'html5-qrcode';
+import { Button, Modal, Space, Typography } from 'antd';
 
 interface QrScanModalProps {
   onScan: (text: string) => void;
@@ -43,20 +44,25 @@ export function QrScanModal({ onScan, onClose }: QrScanModalProps) {
   }, [onScan]);
 
   return (
-    <div
-      className="qr-scan-overlay"
-      role="dialog"
-      aria-modal="true"
-      aria-label="扫描二维码"
+    <Modal
+      open
+      title="扫描二维码"
+      onCancel={onClose}
+      centered
+      destroyOnClose
+      footer={null}
+      width={520}
     >
-      <div className="qr-scan">
-        <p className="qr-scan__hint">将二维码放入框内自动识别</p>
-        <div id="qr-scanner-region" className="qr-scan__region" />
-        {error && <p className="qr-scan__error">{error}</p>}
-        <button type="button" className="qr-scan__close" onClick={onClose}>
+      <Space direction="vertical" className="w-full" size={12}>
+        <Typography.Paragraph className="!mb-0 text-center text-sm text-slate-600">
+          将二维码放入框内自动识别
+        </Typography.Paragraph>
+        <div id="qr-scanner-region" className="min-h-[320px] overflow-hidden rounded-xl bg-black" />
+        {error && <Typography.Text type="danger">{error}</Typography.Text>}
+        <Button block onClick={onClose}>
           关闭
-        </button>
-      </div>
-    </div>
+        </Button>
+      </Space>
+    </Modal>
   );
 }

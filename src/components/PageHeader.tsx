@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
+import { DownOutlined } from '@ant-design/icons';
+import { Button, Dropdown, Space, Typography } from 'antd';
 import { useMatch } from '../context/MatchContext';
 
 export function PageHeader() {
@@ -12,88 +13,47 @@ export function PageHeader() {
     exportMatchAsQrCode,
   } = useMatch();
 
-  const [menuOpen, setMenuOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!menuOpen) return;
-
-    const handleClickOutside = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setMenuOpen(false);
-      }
-    };
-
-    document.addEventListener('pointerdown', handleClickOutside);
-    return () => document.removeEventListener('pointerdown', handleClickOutside);
-  }, [menuOpen]);
-
-  const handleExportImage = () => {
-    setMenuOpen(false);
-    exportMatchAsImage();
-  };
-
-  const handleExportQr = () => {
-    setMenuOpen(false);
-    exportMatchAsQrCode();
-  };
-
   return (
-    <header className="page-header">
-      <div className="page-header__actions page-header__actions--left">
-        <button type="button" className="btn-text" onClick={() => openHistory()}>
+    <header className="flex min-h-14 items-center justify-between border-b border-slate-200 bg-white px-3 shadow-sm">
+      <Space size={4}>
+        <Button type="text" onClick={() => void openHistory()}>
           历史
-        </button>
-        <button type="button" className="btn-text" onClick={openNewMatchModal}>
+        </Button>
+        <Button type="text" onClick={openNewMatchModal}>
           新比赛
-        </button>
-      </div>
-      <h1 className="page-header__title">台球追分记分器</h1>
-      <div className="page-header__actions">
+        </Button>
+      </Space>
+      <Typography.Title level={4} className="!m-0 flex-1 text-center !text-[17px]">
+        台球追分记分器
+      </Typography.Title>
+      <div className="flex items-center justify-end gap-1">
         {isReadOnly ? (
-          <div className="export-dropdown" ref={menuRef} data-export-hide>
-            <button
-              type="button"
-              className="btn-text export-dropdown__trigger"
-              onClick={() => setMenuOpen((v) => !v)}
-              disabled={exporting}
-              aria-expanded={menuOpen}
-              aria-haspopup="true"
-            >
-              {exporting ? '导出中…' : '导出'}
-              <span className="export-dropdown__arrow" aria-hidden="true">
-                ▾
-              </span>
-            </button>
-            {menuOpen && (
-              <div className="export-dropdown__menu" role="menu">
-                <button
-                  type="button"
-                  className="export-dropdown__item"
-                  role="menuitem"
-                  onClick={handleExportImage}
-                >
-                  导出图片
-                </button>
-                <button
-                  type="button"
-                  className="export-dropdown__item"
-                  role="menuitem"
-                  onClick={handleExportQr}
-                >
-                  分享二维码
-                </button>
-              </div>
-            )}
-          </div>
-        ) : (
-          <button
-            type="button"
-            className="btn-text btn-text--danger"
-            onClick={openArchiveModal}
+          <Dropdown
+            menu={{
+              items: [
+                { key: 'image', label: '导出图片' },
+                { key: 'qr', label: '分享二维码' },
+              ],
+              onClick: ({ key }) => {
+                if (key === 'image') {
+                  void exportMatchAsImage();
+                }
+                if (key === 'qr') {
+                  void exportMatchAsQrCode();
+                }
+              },
+            }}
+            trigger={['click']}
+            disabled={exporting}
           >
+            <Button type="text" disabled={exporting}>
+              {exporting ? '导出中…' : '导出'} <DownOutlined />
+            </Button>
+          </Dropdown>
+        ) : (
+          <Button danger type="text" onClick={openArchiveModal}>
             结束本场比赛
-          </button>
+          </Button>
         )}
       </div>
     </header>

@@ -3,6 +3,7 @@ import {
   PLAYER2_COLOR,
   PLAYER3_COLOR,
 } from '../domain/constants';
+import { Table, Typography } from 'antd';
 import { calcMatchOverview, formatNetScore } from '../domain/scoring';
 import type { MatchRecord, PlayerId, PlayerOverviewStats } from '../domain/types';
 import { useMatch } from '../context/MatchContext';
@@ -16,12 +17,6 @@ function getPlayerColor(player: PlayerId): string {
   if (player === 1) return PLAYER1_COLOR;
   if (player === 2) return PLAYER2_COLOR;
   return PLAYER3_COLOR;
-}
-
-function getPlayerName(match: MatchRecord, session: { player1Name: string; player2Name: string; player3Name: string }, player: PlayerId): string {
-  if (player === 1) return session.player1Name || match.player1Name;
-  if (player === 2) return session.player2Name || match.player2Name;
-  return session.player3Name || match.player3Name || '选手3';
 }
 
 function getOverviewPlayerOrder(
@@ -64,51 +59,75 @@ export function OverviewTable({ match }: OverviewTableProps) {
 
   const playersInOrder = getOverviewPlayerOrder(match, displayPlayerOrder);
 
+  const columns = [
+    {
+      title: '选手',
+      dataIndex: 'player',
+      key: 'player',
+      width: 92,
+      render: (_: unknown, record: { player: PlayerId; color: string; name: string }) => (
+        <PlayerNameEditor
+          name={record.name}
+          color={record.color}
+          editable={!isReadOnly}
+          className="block w-full truncate text-center text-sm font-semibold"
+          onNameChange={(n) => setPlayerName(record.player, n)}
+        />
+      ),
+    },
+    { title: '犯', dataIndex: 'foulCount', key: 'foulCount', width: 56 },
+    { title: '分', dataIndex: 'splitCount', key: 'splitCount', width: 56 },
+    { title: '普', dataIndex: 'normalWinCount', key: 'normalWinCount', width: 56 },
+    { title: '金', dataIndex: 'smallGoldCount', key: 'smallGoldCount', width: 56 },
+    { title: '大', dataIndex: 'bigGoldCount', key: 'bigGoldCount', width: 56 },
+    { title: '额', dataIndex: 'extraScore', key: 'extraScore', width: 56 },
+    {
+      title: '总',
+      dataIndex: 'totalScore',
+      key: 'totalScore',
+      width: 68,
+      render: (score: number) => 100 + score,
+    },
+    {
+      title: '净',
+      dataIndex: 'netScore',
+      key: 'netScore',
+      width: 68,
+      render: (score: number) => formatNetScore(score),
+    },
+  ];
+
+  const dataSource = playersInOrder.map((player) => {
+    const stats = statsByPlayer[player];
+    return {
+      key: player,
+      player,
+      name:
+        player === 1
+          ? session.player1Name || match.player1Name
+          : player === 2
+            ? session.player2Name || match.player2Name
+            : session.player3Name || match.player3Name || '选手3',
+      color: getPlayerColor(player),
+      ...stats,
+      netScore: stats.totalScore,
+    };
+  });
+
   return (
-    <div className="overview-fixed">
-      <div className="overview-fixed__inner">
-      <table className="overview-table">
-        <thead>
-          <tr>
-            <th className="col-player">选手</th>
-            <th>犯</th>
-            <th>分</th>
-            <th>普</th>
-            <th>金</th>
-            <th>大</th>
-            <th>额</th>
-            <th>总</th>
-            <th>净</th>
-          </tr>
-        </thead>
-        <tbody>
-          {playersInOrder.map((player) => {
-            const stats = statsByPlayer[player];
-            return (
-              <tr key={player}>
-                <td className="col-player">
-                  <PlayerNameEditor
-                    name={getPlayerName(match, session, player)}
-                    color={getPlayerColor(player)}
-                    editable={!isReadOnly}
-                    className="overview-player-name"
-                    onNameChange={(n) => setPlayerName(player, n)}
-                  />
-                </td>
-                <td>{stats.foulCount}</td>
-                <td>{stats.splitCount}</td>
-                <td>{stats.normalWinCount}</td>
-                <td>{stats.smallGoldCount}</td>
-                <td>{stats.bigGoldCount}</td>
-                <td>{stats.extraScore}</td>
-                <td>{100 + stats.totalScore}</td>
-                <td>{formatNetScore(stats.totalScore)}</td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-      </div>
+    <div className="border-b border-slate-200 bg-white px-2 py-2 shadow-sm">
+      <Typography.Text className="mb-2 block text-xs text-slate-500">
+        当前局面概览
+      </Typography.Text>
+      <Table
+        className="overflow-hidden rounded-xl"
+        tableLayout="fixed"
+        pagination={false}
+        size="small"
+        bordered
+        columns={columns as never}
+        dataSource={dataSource}
+      />
     </div>
   );
 }

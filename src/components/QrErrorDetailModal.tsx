@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useMatch } from '../context/MatchContext';
+import { Alert, Button, Modal, Space, Input, Typography } from 'antd';
+import type { FocusEvent } from 'react';
 
 async function copyText(text: string): Promise<void> {
   if (navigator.clipboard?.writeText) {
@@ -41,37 +43,38 @@ export function QrErrorDetailModal() {
   };
 
   return (
-    <div
-      className="qr-error-overlay"
-      role="dialog"
-      aria-modal="true"
-      aria-label="二维码生成错误详情"
+    <Modal
+      open
+      title="二维码生成失败"
+      onCancel={closeQrErrorDetail}
+      centered
+      destroyOnClose
+      footer={null}
+      width={520}
     >
-      <div className="qr-error">
-        <h2 className="qr-error__title">二维码生成失败</h2>
-        <p className="qr-error__hint">下面是完整错误信息，可复制后发给开发排查。</p>
-        <textarea
-          className="qr-error__detail"
+      <Space direction="vertical" className="w-full" size={12}>
+        <Typography.Paragraph className="!mb-0 text-sm leading-6 text-slate-600">
+          下面是完整错误信息，可复制后发给开发排查。
+        </Typography.Paragraph>
+        <Input.TextArea
           value={qrErrorDetail}
           readOnly
-          rows={10}
-          onFocus={(e) => e.currentTarget.select()}
+          autoSize={{ minRows: 10, maxRows: 16 }}
+          onFocus={(e: FocusEvent<HTMLTextAreaElement>) => e.currentTarget.select()}
         />
-        {copyStatus === 'copied' && <p className="qr-error__status">已复制</p>}
-        {copyStatus === 'failed' && <p className="qr-error__status qr-error__status--failed">复制失败，请手动选择文本复制</p>}
-        <div className="qr-error__actions">
-          <button type="button" className="qr-error__btn" onClick={closeQrErrorDetail}>
+        {copyStatus === 'copied' && <Alert type="success" message="已复制" showIcon />}
+        {copyStatus === 'failed' && (
+          <Alert type="error" message="复制失败，请手动选择文本复制" showIcon />
+        )}
+        <Space className="w-full" size={8}>
+          <Button block onClick={closeQrErrorDetail}>
             关闭
-          </button>
-          <button
-            type="button"
-            className="qr-error__btn qr-error__btn--primary"
-            onClick={handleCopy}
-          >
+          </Button>
+          <Button block type="primary" onClick={handleCopy}>
             复制错误信息
-          </button>
-        </div>
-      </div>
-    </div>
+          </Button>
+        </Space>
+      </Space>
+    </Modal>
   );
 }

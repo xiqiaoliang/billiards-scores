@@ -4,6 +4,7 @@ import {
   deleteHistoryConfirmText,
 } from '../domain/constants';
 import { useMatch } from '../context/MatchContext';
+import { Button, Modal, Space } from 'antd';
 
 export function ConfirmModal() {
   const {
@@ -19,34 +20,20 @@ export function ConfirmModal() {
 
   if (confirmModal === 'newMatch') {
     return (
-      <div className="modal-overlay" role="dialog" aria-modal="true">
-        <div className="modal">
-          <p className="modal__text">{NEW_MATCH_CONFIRM_TEXT}</p>
-          <div className="modal__actions modal__actions--stack">
-            <button
-              type="button"
-              className="modal__btn modal__btn--primary modal__btn--block"
-              onClick={() => confirmNewMatch('duel')}
-            >
-              二人追分
-            </button>
-            <button
-              type="button"
-              className="modal__btn modal__btn--primary modal__btn--block"
-              onClick={() => confirmNewMatch('trio')}
-            >
-              三人追分
-            </button>
-            <button
-              type="button"
-              className="modal__btn modal__btn--cancel modal__btn--block"
-              onClick={closeConfirmModal}
-            >
-              取消
-            </button>
-          </div>
-        </div>
-      </div>
+      <Modal open title="新比赛" onCancel={closeConfirmModal} footer={null} centered destroyOnClose>
+        <p className="mb-4 text-sm leading-6 text-slate-600">{NEW_MATCH_CONFIRM_TEXT}</p>
+        <Space direction="vertical" className="w-full" size={8}>
+          <Button block type="primary" onClick={() => confirmNewMatch('duel')}>
+            二人追分
+          </Button>
+          <Button block type="primary" onClick={() => confirmNewMatch('trio')}>
+            三人追分
+          </Button>
+          <Button block onClick={closeConfirmModal}>
+            取消
+          </Button>
+        </Space>
+      </Modal>
     );
   }
 
@@ -67,26 +54,22 @@ export function ConfirmModal() {
   }
 
   return (
-    <div className="modal-overlay" role="dialog" aria-modal="true">
-      <div className="modal">
-        <p className="modal__text">{text}</p>
-        <div className="modal__actions">
-          <button
-            type="button"
-            className="modal__btn modal__btn--cancel"
-            onClick={closeConfirmModal}
-          >
-            取消
-          </button>
-          <button
-            type="button"
-            className="modal__btn modal__btn--confirm"
-            onClick={() => onConfirm()}
-          >
-            确定
-          </button>
-        </div>
-      </div>
-    </div>
+    <Modal
+      open
+      title="请确认"
+      onCancel={closeConfirmModal}
+      centered
+      destroyOnClose
+      footer={[
+        <Button key="cancel" onClick={closeConfirmModal}>
+          取消
+        </Button>,
+        <Button key="confirm" danger={confirmModal === 'archive' || confirmModal === 'deleteHistory'} type="primary" onClick={() => onConfirm()}>
+          确定
+        </Button>,
+      ]}
+    >
+      <p className="mb-0 text-sm leading-6 text-slate-600">{text}</p>
+    </Modal>
   );
 }

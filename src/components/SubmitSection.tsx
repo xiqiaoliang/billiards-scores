@@ -1,4 +1,5 @@
 import { useMatch } from '../context/MatchContext';
+import { Alert, Button } from 'antd';
 
 export function SubmitSection() {
   const {
@@ -12,20 +13,19 @@ export function SubmitSection() {
   const canSubmit = !tagFormReadOnly && pendingTags.length > 0;
 
   return (
-    <div className="submit-section">
+    <div className="px-4">
       {submitError && (
-        <div className="submit-section__error" role="alert">
-          {submitError}
-        </div>
+        <Alert className="mb-2" type="error" message={submitError} showIcon />
       )}
-      <button
-        type="button"
-        className="btn-submit"
+      <Button
+        type="primary"
+        size="large"
+        block
         disabled={!canSubmit}
         onClick={() => (isEditingRound ? saveEditRound() : submitRound())}
       >
         {isEditingRound ? '保存修改' : '提交本局成绩'}
-      </button>
+      </Button>
     </div>
   );
 }
