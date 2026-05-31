@@ -71,7 +71,12 @@ function RoundHistoryItem({
   return (
     <Card
       size="small"
-      className={`rounded-2xl shadow-sm ${isArchived ? 'border-rose-200 bg-rose-50 shadow-none' : 'border-slate-200 cursor-pointer active:bg-slate-50'}`}
+      className={`select-none rounded-2xl shadow-sm ${isArchived ? 'border-rose-200 bg-rose-50 shadow-none' : 'border-slate-200 cursor-pointer active:bg-slate-50'}`}
+      style={{
+        WebkitUserSelect: 'none',
+        userSelect: 'none',
+        WebkitTouchCallout: 'none',
+      }}
       {...longPressHandlers}
     >
       <div className="mb-2 flex items-start justify-between gap-3">
