@@ -5,6 +5,7 @@ import { MatchHistoryPage } from './components/MatchHistoryPage';
 import { OverviewTable } from './components/OverviewTable';
 import { PageHeader } from './components/PageHeader';
 import { PendingTags } from './components/PendingTags';
+import { ScoreRuleGuide } from './components/ScoreRuleGuide';
 import { PlayerScoreBarList } from './components/PlayerScoreBarList';
 import { QrErrorDetailModal } from './components/QrErrorDetailModal';
 import { RoundEditModal } from './components/RoundEditModal';
@@ -52,9 +53,12 @@ function ScoringView() {
               />
 
               <section className="px-4 py-3">
-                <Typography.Title level={5} className="!mb-2">
-                  本局待提交得分（点击标签可单独删除）
-                </Typography.Title>
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <Typography.Title level={5} className="!mb-0">
+                    本局待提交得分（点击标签可单独删除）
+                  </Typography.Title>
+                  <ScoreRuleGuide />
+                </div>
                 <PendingTags />
               </section>
 
