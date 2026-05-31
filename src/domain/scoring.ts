@@ -153,7 +153,7 @@ function getLetGanGainScore(
   score: number,
 ): number {
   // Let-gan only boosts the acting player's positive gain.
-  if (tag.isLetGan && recipient === tag.player) {
+  if (tag.isLetGan && !tag.isHeiJin && recipient === tag.player) {
     return score * 2;
   }
   return score;
@@ -181,32 +181,41 @@ function calcTrioRoundTotals(
     }
 
     if (tag.type === 'split') {
+      addTransfer(totals, upstream, tag.player, score);
+      continue;
+    }
+
+    if (tag.isHeiJin && isHeiJinWinType(tag.type)) {
+      const heiJinScore = score + FOUL_OPPONENT_BONUS;
+      if (tag.type === 'normal_win') {
+        addTransfer(totals, tag.player, tag.isLetGan ? downstream : upstream, heiJinScore);
+        continue;
+      }
+
       if (tag.isLetGan) {
-        addTransfer(totals, downstream, tag.player, gainScore);
+        addTransfer(totals, tag.player, downstream, heiJinScore);
       } else {
-        addTransfer(totals, upstream, tag.player, score);
+        addTransfer(totals, tag.player, upstream, heiJinScore);
+        addTransfer(totals, tag.player, downstream, heiJinScore);
+      }
+      continue;
+    }
+
+    if (tag.isLetGan) {
+      if (tag.type === 'normal_win' || tag.type === 'golden_9' || tag.type === 'small_gold' || tag.type === 'big_gold') {
+        addTransfer(totals, downstream, tag.player, gainScore);
       }
       continue;
     }
 
     if (tag.type === 'normal_win') {
-      if (tag.isHeiJin) {
-        addTransfer(totals, tag.player, upstream, score);
-      } else {
-        addTransfer(totals, upstream, tag.player, gainScore);
-      }
+      addTransfer(totals, upstream, tag.player, gainScore);
       continue;
     }
 
     if (tag.type === 'golden_9' || tag.type === 'small_gold' || tag.type === 'big_gold') {
-      if (tag.isHeiJin) {
-        addTransfer(totals, tag.player, upstream, score);
-      } else if (tag.isLetGan) {
-        addTransfer(totals, downstream, tag.player, gainScore);
-      } else {
-        addTransfer(totals, upstream, tag.player, score);
-        addTransfer(totals, downstream, tag.player, score);
-      }
+      addTransfer(totals, upstream, tag.player, score);
+      addTransfer(totals, downstream, tag.player, score);
     }
   }
 
@@ -443,17 +452,17 @@ export function formatTagLabel(
   playerName: string,
   tag: PendingTag,
 ): string {
+  if (tag.isLetGan && tag.type !== 'let_foul') {
+    const label = tag.isHeiJin ? getHeiJinLabel(tag.type) ?? SCORE_LABELS[tag.type] : SCORE_LABELS[tag.type];
+    return `${playerName} 让杆${label}`;
+  }
   if (tag.isHeiJin) {
     const heiJinLabel = getHeiJinLabel(tag.type);
     if (heiJinLabel) {
       return `${playerName} ${heiJinLabel}`;
     }
   }
-  const label = SCORE_LABELS[tag.type];
-  if (tag.isLetGan && tag.type !== 'let_foul') {
-    return `${playerName} 让杆${label}`;
-  }
-  return `${playerName} ${label}`;
+  return `${playerName} ${SCORE_LABELS[tag.type]}`;
 }
 
 export function getPlayerName(match: MatchRecord, player: PlayerId): string {
@@ -475,7 +484,14 @@ function getSummaryPlayerName(
 
 function formatOwnTagLabel(tag: PendingTag): string {
   if (tag.isLetGan && tag.type !== 'let_foul') {
-    return `让杆${SCORE_LABELS[tag.type]}`;
+    const label = tag.isHeiJin ? getHeiJinLabel(tag.type) ?? SCORE_LABELS[tag.type] : SCORE_LABELS[tag.type];
+    return `让杆${label}`;
+  }
+  if (tag.isHeiJin) {
+    const heiJinLabel = getHeiJinLabel(tag.type);
+    if (heiJinLabel) {
+      return heiJinLabel;
+    }
   }
   return SCORE_LABELS[tag.type];
 }
@@ -484,6 +500,10 @@ function formatOtherTagLabel(
   sourceName: string,
   tag: PendingTag,
 ): string {
+  if (tag.isLetGan && tag.type !== 'let_foul') {
+    const label = tag.isHeiJin ? getHeiJinLabel(tag.type) ?? SCORE_LABELS[tag.type] : SCORE_LABELS[tag.type];
+    return `${sourceName}让杆${label}`;
+  }
   if (tag.isHeiJin) {
     const heiJinLabel = getHeiJinLabel(tag.type);
     if (heiJinLabel) {
@@ -574,6 +594,15 @@ export function getRoundWinnerPlayer(
   const winTag = getRoundWinTag(tags);
   if (!winTag) return null;
 
+  if (winTag.isLetGan && winTag.isHeiJin) {
+    const { downstream } = getRelativePlayers(winTag.player, mode, playerOrder);
+    return downstream;
+  }
+
+  if (winTag.isLetGan) {
+    return winTag.player;
+  }
+
   if (mode === 'trio') {
     const { upstream } = getRelativePlayers(winTag.player, 'trio', playerOrder);
     if (winTag.isHeiJin) {
@@ -596,6 +625,14 @@ export function getRoundWinnerLabel(
   const winTag = getRoundWinTag(tags);
   const winnerPlayer = getRoundWinnerPlayer(tags, match.mode ?? 'duel', playerOrder);
   if (!winTag || winnerPlayer === null) return null;
+
+  if (winTag.isLetGan && winTag.isHeiJin) {
+    return formatTagLabel(getPlayerName(match, winnerPlayer), winTag);
+  }
+
+  if (winTag.isLetGan) {
+    return formatTagLabel(getPlayerName(match, winTag.player), winTag);
+  }
 
   if (winTag.isHeiJin) {
     const heiJinLabel = getHeiJinLabel(winTag.type);
