@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ChangeEvent, type KeyboardEvent } from 'react';
-import { Button, Input, Typography } from 'antd';
+import { Input, Typography } from 'antd';
 import type { InputRef } from 'antd';
 interface PlayerNameEditorProps {
   name: string;
@@ -65,14 +65,21 @@ export function PlayerNameEditor({
   }
 
   return (
-    <Button
-      type="text"
+    <Typography.Text
       className={className}
       style={{ color }}
+      role="button"
+      tabIndex={0}
       onClick={() => setEditing(true)}
+      onKeyDown={(e: KeyboardEvent<HTMLElement>) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          setEditing(true);
+        }
+      }}
       title="点击修改选手名称"
     >
       {name}
-    </Button>
+    </Typography.Text>
   );
 }

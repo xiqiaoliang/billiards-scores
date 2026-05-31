@@ -3,7 +3,7 @@ import {
   PLAYER2_COLOR,
   PLAYER3_COLOR,
 } from '../domain/constants';
-import { Table, Typography } from 'antd';
+import { Table } from 'antd';
 import { calcMatchOverview, formatNetScore } from '../domain/scoring';
 import type { MatchRecord, PlayerId, PlayerOverviewStats } from '../domain/types';
 import { useMatch } from '../context/MatchContext';
@@ -64,35 +64,38 @@ export function OverviewTable({ match }: OverviewTableProps) {
       title: '选手',
       dataIndex: 'player',
       key: 'player',
-      width: 92,
+      width: 68,
+      align: 'center',
       render: (_: unknown, record: { player: PlayerId; color: string; name: string }) => (
         <PlayerNameEditor
           name={record.name}
           color={record.color}
           editable={!isReadOnly}
-          className="block w-full truncate text-center text-sm font-semibold"
+          className="block w-full truncate text-center text-sm font-semibold leading-5"
           onNameChange={(n) => setPlayerName(record.player, n)}
         />
       ),
     },
-    { title: '犯', dataIndex: 'foulCount', key: 'foulCount', width: 56 },
-    { title: '分', dataIndex: 'splitCount', key: 'splitCount', width: 56 },
-    { title: '普', dataIndex: 'normalWinCount', key: 'normalWinCount', width: 56 },
-    { title: '金', dataIndex: 'smallGoldCount', key: 'smallGoldCount', width: 56 },
-    { title: '大', dataIndex: 'bigGoldCount', key: 'bigGoldCount', width: 56 },
-    { title: '额', dataIndex: 'extraScore', key: 'extraScore', width: 56 },
+    { title: '犯', dataIndex: 'foulCount', key: 'foulCount', width: 36, align: 'center' },
+    { title: '分', dataIndex: 'splitCount', key: 'splitCount', width: 36, align: 'center' },
+    { title: '普', dataIndex: 'normalWinCount', key: 'normalWinCount', width: 36, align: 'center' },
+    { title: '金', dataIndex: 'smallGoldCount', key: 'smallGoldCount', width: 36, align: 'center' },
+    { title: '大', dataIndex: 'bigGoldCount', key: 'bigGoldCount', width: 36, align: 'center' },
+    { title: '额', dataIndex: 'extraScore', key: 'extraScore', width: 36, align: 'center' },
     {
       title: '总',
       dataIndex: 'totalScore',
       key: 'totalScore',
-      width: 68,
+      width: 44,
+      align: 'center',
       render: (score: number) => 100 + score,
     },
     {
       title: '净',
       dataIndex: 'netScore',
       key: 'netScore',
-      width: 68,
+      width: 44,
+      align: 'center',
       render: (score: number) => formatNetScore(score),
     },
   ];
@@ -116,9 +119,6 @@ export function OverviewTable({ match }: OverviewTableProps) {
 
   return (
     <div className="border-b border-slate-200 bg-white px-2 py-2 shadow-sm">
-      <Typography.Text className="mb-2 block text-xs text-slate-500">
-        当前局面概览
-      </Typography.Text>
       <Table
         className="overflow-hidden rounded-xl"
         tableLayout="fixed"

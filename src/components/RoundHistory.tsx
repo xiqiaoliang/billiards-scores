@@ -75,7 +75,7 @@ function RoundHistoryItem({
   return (
     <Card
       size="small"
-      className={`mb-3 rounded-2xl border-slate-200 shadow-sm last:mb-0 ${isArchived ? 'opacity-70' : 'cursor-pointer active:bg-slate-50'}`}
+      className={`rounded-2xl border-slate-200 shadow-sm ${isArchived ? 'opacity-70' : 'cursor-pointer active:bg-slate-50'}`}
       {...longPressHandlers}
     >
       <div className="mb-2 flex items-start justify-between gap-3">
@@ -106,9 +106,13 @@ function RoundHistoryItem({
           );
         })}
       </Space>
-      <div className={`grid gap-2 text-xs leading-5 ${order.length === 3 ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-2'}`}>
+      <div className="flex w-full flex-wrap gap-y-1 text-xs leading-5">
         {order.map((player) => (
-          <Typography.Text key={player} style={{ color: getPlayerColor(player) }}>
+          <Typography.Text
+            key={player}
+            className={`min-w-0 ${order.length === 3 && player === order[2] ? 'basis-full text-left' : 'basis-1/2'} ${player === order[0] ? 'pr-2 text-left' : player === order[1] ? 'pl-2 text-right' : ''}`}
+            style={{ color: getPlayerColor(player) }}
+          >
             {getPlayerName(match, player)}{' '}
             {formatPlayerRoundSummary(round.tags, player, {
               mode: match.mode,
@@ -148,15 +152,17 @@ export function RoundHistory({ match }: RoundHistoryProps) {
           暂无历史记录
         </Typography.Text>
       ) : (
-        rounds.map((round) => (
-          <RoundHistoryItem
-            key={round.roundNumber}
-            round={round}
-            match={match}
-            order={computedOrders[round.roundNumber] ?? getRoundOrder(round, match)}
-            isArchived={isArchived}
-          />
-        ))
+        <div className="flex flex-col gap-3">
+          {rounds.map((round) => (
+            <RoundHistoryItem
+              key={round.roundNumber}
+              round={round}
+              match={match}
+              order={computedOrders[round.roundNumber] ?? getRoundOrder(round, match)}
+              isArchived={isArchived}
+            />
+          ))}
+        </div>
       )}
     </section>
   );

@@ -73,20 +73,14 @@ export function MatchHistoryPage() {
   return (
     <div className="flex min-h-dvh flex-col bg-slate-100">
       <header className="sticky top-0 z-20 flex min-h-14 items-center justify-between border-b border-slate-200 bg-white px-3 shadow-sm">
-        <Button type="text" icon={<ArrowLeftOutlined />} onClick={closeHistory}>
-          返回
-        </Button>
+        <Button type="link" icon={<ArrowLeftOutlined />} onClick={closeHistory} aria-label="返回" />
         <Typography.Title level={4} className="!m-0 text-[17px]">
           历史比赛
         </Typography.Title>
-        <Space size={4} wrap>
-          <Button icon={<UploadOutlined />} onClick={handleImportClick}>
-            导入
-          </Button>
-          <Button icon={<EditOutlined />} onClick={() => setPasteOpen(true)}>
-            粘贴
-          </Button>
-          <Button icon={<ScanOutlined />} onClick={() => setScanOpen(true)} />
+        <Space size={0} wrap>
+          <Button type="link" icon={<UploadOutlined />} onClick={handleImportClick} aria-label="导入" />
+          <Button type="link" icon={<EditOutlined />} onClick={() => setPasteOpen(true)} aria-label="粘贴导入" />
+          <Button type="link" icon={<ScanOutlined />} onClick={() => setScanOpen(true)} aria-label="扫码导入" />
         </Space>
         <input
           ref={fileInputRef}
@@ -126,8 +120,9 @@ export function MatchHistoryPage() {
 
       <div className="flex-1 overflow-y-auto p-4">
         {historyLoading ? (
-          <div className="flex items-center justify-center py-12">
-            <Spin size="large" tip="加载中..." />
+          <div className="flex flex-col items-center justify-center gap-2 py-12">
+            <Spin size="large" />
+            <Typography.Text className="text-slate-500">加载中...</Typography.Text>
           </div>
         ) : historyMatches.length === 0 ? (
           <Empty description="暂无历史比赛记录" />
@@ -146,7 +141,7 @@ export function MatchHistoryPage() {
 
               return (
                 <List.Item className="!mb-3 !p-0 last:!mb-0">
-                  <div className="flex w-full items-stretch gap-2">
+                  <div className="flex w-full items-center gap-2">
                     <Checkbox
                       className="mt-4 shrink-0"
                       checked={isSelected}
@@ -179,15 +174,15 @@ export function MatchHistoryPage() {
                       <Typography.Text className="mt-1 block text-xs text-slate-500">
                         {formatDateTime(m.createdAt)} · 共 {m.rounds.length} 局
                       </Typography.Text>
-                      <div className="mt-3 flex flex-wrap gap-2 text-sm">
-                        <Tag style={{ color: '#1677ff' }}>
+                      <div className={`mt-3 grid gap-2 text-sm ${m.mode === 'trio' ? 'grid-cols-3' : 'grid-cols-2'}`}>
+                        <Tag className="m-0 w-full justify-center rounded-full px-2 py-1 text-center" style={{ color: '#1677ff' }}>
                           {m.player1Name} {overview.player1.totalScore}
                         </Tag>
-                        <Tag style={{ color: '#f53f3f' }}>
+                        <Tag className="m-0 w-full justify-center rounded-full px-2 py-1 text-center" style={{ color: '#f53f3f' }}>
                           {m.player2Name} {overview.player2.totalScore}
                         </Tag>
                         {m.mode === 'trio' && overview.player3 && (
-                          <Tag style={{ color: '#d48806' }}>
+                          <Tag className="m-0 w-full justify-center rounded-full px-2 py-1 text-center" style={{ color: '#d48806' }}>
                             {m.player3Name ?? '选手3'} {overview.player3.totalScore}
                           </Tag>
                         )}
@@ -196,6 +191,7 @@ export function MatchHistoryPage() {
                     <Button
                       danger
                       type="text"
+                      className="self-center"
                       icon={<DeleteOutlined />}
                       onClick={(e) => {
                         e.stopPropagation();

@@ -70,8 +70,9 @@ function AppContent() {
 
   if (loading || !match) {
     return (
-      <div className="flex min-h-dvh items-center justify-center bg-slate-100 text-slate-500">
-        <Spin size="large" tip="加载中..." />
+      <div className="flex min-h-dvh flex-col items-center justify-center gap-2 bg-slate-100 text-slate-500">
+        <Spin size="large" />
+        <Typography.Text className="text-slate-500">加载中...</Typography.Text>
       </div>
     );
   }

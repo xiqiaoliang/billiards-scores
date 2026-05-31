@@ -2,7 +2,7 @@ import { PLAYER1_COLOR, PLAYER2_COLOR, PLAYER3_COLOR } from '../domain/constants
 import { formatTagLabel, sortScoreTags } from '../domain/scoring';
 import { useMatch } from '../context/MatchContext';
 import type { MouseEvent as ReactMouseEvent } from 'react';
-import { Empty, Space, Tag, Typography } from 'antd';
+import { Space, Tag, Typography } from 'antd';
 
 export function PendingTags() {
   const { activeSession, tagFormReadOnly, removePendingTag } = useMatch();
@@ -11,7 +11,9 @@ export function PendingTags() {
   return (
     <div className="rounded-2xl bg-slate-50 px-3 py-2">
       {pendingTags.length === 0 ? (
-        <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无得分" />
+        <Typography.Text className="block py-2 text-sm text-slate-500">
+          暂无待提交得分
+        </Typography.Text>
       ) : (
         <Space wrap size={[8, 8]}>
           {sortScoreTags(pendingTags).map((tag) => {

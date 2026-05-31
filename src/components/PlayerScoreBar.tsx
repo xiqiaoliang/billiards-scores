@@ -67,8 +67,8 @@ export function PlayerScoreBar({ player }: PlayerScoreBarProps) {
   const showGolden9Button = !letGanChecked;
 
   return (
-    <Card className="mb-3 rounded-2xl border-slate-200 shadow-sm last:mb-0">
-      <div className="mb-3 flex flex-wrap items-center gap-2">
+    <Card size="small" className="mb-2 rounded-2xl border-slate-200 shadow-sm last:mb-0">
+      <div className="mb-2 flex flex-wrap items-center gap-2">
         <Typography.Text className="text-base font-semibold" style={{ color }}>
           {name}
         </Typography.Text>
@@ -97,18 +97,20 @@ export function PlayerScoreBar({ player }: PlayerScoreBarProps) {
           </Button>
         </Space>
       </div>
-      <Space className="w-full" size={8} wrap>
+      <div className="flex w-full flex-nowrap gap-1 overflow-hidden">
         {buttons.map((type) => (
           <Button
             key={type}
             disabled={scoreButtonsDisabled}
             onClick={() => addScoreTag(player, type)}
-            className="min-w-0 flex-1"
+            className="min-w-0 flex-1 px-1 text-[11px] leading-none"
           >
-            {type === 'let_foul' ? SCORE_LABELS.foul : SCORE_LABELS[type]}
+            <span className="block truncate">
+              {type === 'let_foul' ? SCORE_LABELS.foul : SCORE_LABELS[type]}
+            </span>
           </Button>
         ))}
-      </Space>
+      </div>
     </Card>
   );
 }
