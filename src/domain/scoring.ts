@@ -385,7 +385,13 @@ function aggregatePlayerFromRounds(
           break;
         case 'normal_win':
         case 'golden_9':
-          normalWinCount += 1;
+          // In duel mode, a win tag with isHeiJin should be attributed to the opponent
+          // (the logic below handles incrementing the opponent when opponent has an
+          // isHeiJin win). Avoid double-counting by skipping the increment here when
+          // this player's own tag is a hei jin win in duel mode.
+          if (!(mode === 'duel' && tag.isHeiJin)) {
+            normalWinCount += 1;
+          }
           break;
         case 'small_gold':
           smallGoldCount += 1;
