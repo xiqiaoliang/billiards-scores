@@ -80,6 +80,19 @@ export async function getMatchById(id: string): Promise<MatchRecord | undefined>
   return db.matches.get(id);
 }
 
+export async function findMatchBySignature(candidate: MatchRecord): Promise<MatchRecord | undefined> {
+  // Try to detect an existing match by matching createdAt, mode and player names.
+  // This is used for imported matches to avoid duplicate imports.
+  const matches = await getAllMatches();
+  return matches.find((m) =>
+    m.mode === candidate.mode &&
+    m.createdAt === candidate.createdAt &&
+    m.player1Name === candidate.player1Name &&
+    m.player2Name === candidate.player2Name &&
+    (m.mode === 'trio' ? m.player3Name === candidate.player3Name : true),
+  );
+}
+
 
 export async function deleteMatches(ids: string[]): Promise<void> {
   if (ids.length === 0) return;

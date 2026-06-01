@@ -48,6 +48,7 @@ import {
   getLatestInProgressMatch,
   getMatchById,
   saveMatch,
+  findMatchBySignature,
 } from '../repositories/matchRepository';
 
 function createSessionFromMatch(match: MatchRecord): SessionState {
@@ -334,6 +335,7 @@ interface MatchContextValue {
   exporting: boolean;
   exportPreviewUrl: string | null;
   exportPreviewKind: 'image' | 'qr' | null;
+  exportPreviewLink: string | null;
   qrErrorDetail: string | null;
   exportMatchAsImage: () => Promise<void>;
   exportMatchAsQrCode: () => Promise<void>;
@@ -383,6 +385,7 @@ export function MatchProvider({ children }: { children: ReactNode }) {
   const [exporting, setExporting] = useState(false);
   const [exportPreviewUrl, setExportPreviewUrl] = useState<string | null>(null);
   const [exportPreviewKind, setExportPreviewKind] = useState<'image' | 'qr' | null>(null);
+  const [exportPreviewLink, setExportPreviewLink] = useState<string | null>(null);
   const [qrErrorDetail, setQrErrorDetail] = useState<string | null>(null);
 
   useEffect(() => {
@@ -409,6 +412,7 @@ export function MatchProvider({ children }: { children: ReactNode }) {
       cancelled = true;
     };
   }, []);
+
 
   const activeSession =
     state.editingRoundNumber !== null ? state.editSession : state.session;
@@ -791,10 +795,7 @@ export function MatchProvider({ children }: { children: ReactNode }) {
     dispatch({ type: 'SET_CONFIRM_MODAL', modal: 'deleteHistory' });
   }, []);
 
-  const closeExportPreview = useCallback(() => {
-    setExportPreviewUrl(null);
-    setExportPreviewKind(null);
-  }, []);
+
 
   const closeQrErrorDetail = useCallback(() => {
     setQrErrorDetail(null);
@@ -847,6 +848,17 @@ export function MatchProvider({ children }: { children: ReactNode }) {
     try {
       const dataUrl = await generateMatchQrShareImage(state.match);
       setExportPreviewUrl(dataUrl);
+      try {
+        const base = typeof location !== 'undefined' ? `${location.origin}${location.pathname}` : '/';
+        // encode the same QR payload into the link
+        // encodeMatchToQrPayload is available from utils
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const { encodeMatchToQrPayload } = await import('../utils/matchQrCode');
+        const payload = encodeMatchToQrPayload(state.match);
+        setExportPreviewLink(`${base}?bs=${encodeURIComponent(payload)}`);
+      } catch {
+        setExportPreviewLink(null);
+      }
       setExportPreviewKind('qr');
       dispatch({
         type: 'SET_TOAST',
@@ -898,15 +910,45 @@ export function MatchProvider({ children }: { children: ReactNode }) {
     }
   }, [state.match, exportPreviewUrl, exportPreviewKind, exporting]);
 
+  // clear link when closing preview
+  const closeExportPreview = useCallback(() => {
+    setExportPreviewUrl(null);
+    setExportPreviewKind(null);
+    setExportPreviewLink(null);
+  }, []);
+
   const importMatchFromQrPayload = useCallback(
     async (payload: string): Promise<boolean> => {
       const decoded = decodeMatchFromQrPayload(payload);
       if (!decoded) {
         dispatch({
           type: 'SET_TOAST',
-          message: '无法识别二维码，请确认是台球记分二维码',
+          message: '无法识别二维码或链接，请确认是台球记分二维码/链接',
         });
         return false;
+      }
+
+      // Check if the match already exists (by signature) to avoid duplicates.
+      const existing = await findMatchBySignature(decoded);
+      if (existing) {
+        // Open the existing match
+        dispatch({ type: 'INIT_MATCH', match: existing });
+
+        // Remove import query params from URL so refresh behaves the same as normal entry
+        if (typeof window !== 'undefined') {
+          try {
+            const url = new URL(window.location.href);
+            for (const name of ['bs', 'm', 'match', 'data']) {
+              url.searchParams.delete(name);
+            }
+            window.history.replaceState({}, '', url.pathname + url.search + url.hash);
+          } catch {
+            // ignore
+          }
+        }
+
+        dispatch({ type: 'SET_TOAST', message: '比赛已存在，已打开该比赛' });
+        return true;
       }
 
       const imported = prepareImportedMatch(decoded);
@@ -915,6 +957,22 @@ export function MatchProvider({ children }: { children: ReactNode }) {
       if (state.view === 'history') {
         const matches = await getAllMatches();
         dispatch({ type: 'SET_HISTORY_MATCHES', matches });
+      }
+
+      // Initialize and open the newly imported match
+      dispatch({ type: 'INIT_MATCH', match: imported });
+
+      // Remove import query params from URL so refresh behaves the same as normal entry
+      if (typeof window !== 'undefined') {
+        try {
+          const url = new URL(window.location.href);
+          for (const name of ['bs', 'm', 'match', 'data']) {
+            url.searchParams.delete(name);
+          }
+          window.history.replaceState({}, '', url.pathname + url.search + url.hash);
+        } catch {
+          // ignore
+        }
       }
 
       dispatch({
@@ -928,6 +986,23 @@ export function MatchProvider({ children }: { children: ReactNode }) {
     },
     [state.view],
   );
+
+      // After provider functions are ready, check URL on mount for an import parameter and attempt import
+      useEffect(() => {
+        if (typeof window === 'undefined') return;
+        try {
+          const url = new URL(window.location.href);
+          for (const name of ['bs', 'm', 'match', 'data']) {
+            const v = url.searchParams.get(name);
+            if (v) {
+              void importMatchFromQrPayload(decodeURIComponent(v));
+              break;
+            }
+          }
+        } catch {
+          // ignore
+        }
+      }, [importMatchFromQrPayload]);
 
   const importMatchFromQrImage = useCallback(
     async (file: File): Promise<boolean> => {
@@ -1023,6 +1098,7 @@ export function MatchProvider({ children }: { children: ReactNode }) {
       exportRootRef,
       exporting,
       exportPreviewUrl,
+      exportPreviewLink,
       exportPreviewKind,
       qrErrorDetail,
       exportMatchAsImage,
@@ -1075,6 +1151,7 @@ export function MatchProvider({ children }: { children: ReactNode }) {
       confirmDeleteHistory,
       exporting,
       exportPreviewUrl,
+      exportPreviewLink,
       exportPreviewKind,
       qrErrorDetail,
       exportMatchAsImage,

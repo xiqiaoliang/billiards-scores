@@ -14,6 +14,7 @@ import type {
 const QR_PREFIX_V2 = 'bs:v2:';
 const QR_PREFIX_V3 = 'bs:v3:';
 const QR_PREFIX = QR_PREFIX_V3;
+const LINK_PARAM_NAMES = ['bs', 'm', 'match', 'data'];
 const FIELD_SEP = '|';
 const LIST_SEP = '~';
 const ROUND_SEP = '^';
@@ -510,6 +511,37 @@ export function encodeMatchToQrPayload(match: MatchRecord): string {
 
 export function decodeMatchFromQrPayload(payload: string): MatchRecord | null {
   const normalized = payload.trim().replace(/\s/g, '');
+
+  // If the payload looks like a URL, try to extract our payload from query/hash params.
+  try {
+    if (/^https?:\/\//i.test(normalized)) {
+      const url = new URL(normalized);
+      for (const name of LINK_PARAM_NAMES) {
+        const v = url.searchParams.get(name);
+        if (v) {
+          // v may be encoded already
+          const decoded = decodeURIComponent(v);
+          return decodeMatchFromQrPayload(decoded);
+        }
+      }
+      // also try hash fragment as potential search params
+      if (url.hash) {
+        const h = url.hash.replace(/^#/, '');
+        try {
+          const p = new URLSearchParams(h);
+          for (const name of LINK_PARAM_NAMES) {
+            const v = p.get(name);
+            if (v) return decodeMatchFromQrPayload(decodeURIComponent(v));
+          }
+        } catch {
+          // ignore
+        }
+      }
+    }
+  } catch {
+    // ignore invalid URL parsing
+  }
+
   if (normalized.startsWith(QR_PREFIX_V3)) {
     const raw = normalized.slice(QR_PREFIX_V3.length);
     return decodeMatchJson(raw) ?? decodeMatchCompactV3(raw);
@@ -518,6 +550,21 @@ export function decodeMatchFromQrPayload(payload: string): MatchRecord | null {
     return decodeMatchCompact(normalized.slice(QR_PREFIX_V2.length));
   }
   return null;
+}
+
+export function encodeMatchToLink(match: MatchRecord): string {
+  // Build a short link that carries the QR payload as a query parameter.
+  // Use available location when present; otherwise fallback to a generic path.
+  const payload = encodeMatchToQrPayload(match);
+  let base = '/';
+  if (typeof location !== 'undefined') {
+    try {
+      base = `${location.origin}${location.pathname}`;
+    } catch {
+      base = '/';
+    }
+  }
+  return `${base}?bs=${encodeURIComponent(payload)}`;
 }
 
 function generateId(): string {
@@ -563,7 +610,8 @@ export async function generateMatchQrDataUrl(
   match: MatchRecord,
   size = 640,
 ): Promise<string> {
-  const payload = encodeMatchToQrPayload(match);
+  // Export a URL containing the match payload so scanners produce a sharable link.
+  const payload = encodeMatchToLink(match);
   // iPhone Safari is prone to canvas/toDataURL failures in qrcode's PNG renderer.
   // SVG avoids the canvas path and keeps the same payload scannable.
   if (isIOSSafariBrowser()) {

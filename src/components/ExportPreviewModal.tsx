@@ -5,6 +5,7 @@ export function ExportPreviewModal() {
   const {
     exportPreviewUrl,
     exportPreviewKind,
+    exportPreviewLink,
     closeExportPreview,
     downloadExportPreview,
     exporting,
@@ -39,6 +40,30 @@ export function ExportPreviewModal() {
         <Button type="primary" block onClick={downloadExportPreview} loading={exporting}>
           {exporting ? '下载中...' : isQr ? '下载二维码' : '下载图片'}
         </Button>
+        {isQr && exportPreviewLink ? (
+          <Button
+            block
+            onClick={async () => {
+              try {
+                await navigator.clipboard.writeText(exportPreviewLink);
+                // Try native share if available
+                if ((navigator as any).share) {
+                  try {
+                    await (navigator as any).share({ title: '比赛链接', text: '请查看比赛', url: exportPreviewLink });
+                  } catch {
+                    // ignore share errors
+                  }
+                }
+                // show a simple notification via replacing toast provided by context would be better, but keep local alert
+                alert('链接已复制到剪贴板');
+              } catch {
+                alert('复制链接失败，请手动复制：' + exportPreviewLink);
+              }
+            }}
+          >
+            复制并分享链接
+          </Button>
+        ) : null}
         <Button block onClick={closeExportPreview}>
           关闭
         </Button>
