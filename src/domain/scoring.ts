@@ -655,3 +655,89 @@ export function calcRoundWinnerNet(
   return getPlayerStatsFromRound(round, winnerPlayer).roundTotal;
 }
 
+export interface WinnerAnalysisStats {
+  winCount: number;
+  upstreamFoulWinCount: number;
+  upstreamFoulNotWinCount: number;
+}
+
+function getRoundOrderForAnalysis(
+  round: RoundRecord,
+  mode: MatchMode,
+): PlayerId[] {
+  if (round.playerOrder && round.playerOrder.length > 0) {
+    return round.playerOrder;
+  }
+  return mode === 'trio' ? [1, 2, 3] : [1, 2];
+}
+
+function getUpstreamPlayerForAnalysis(
+  order: PlayerId[],
+  player: PlayerId,
+): PlayerId | null {
+  if (order.length < 2) return null;
+  const index = order.indexOf(player);
+  if (index < 0) return null;
+  const upstreamIndex = (index - 1 + order.length) % order.length;
+  return order[upstreamIndex];
+}
+
+function hasUpstreamFoulForAnalysis(
+  round: RoundRecord,
+  order: PlayerId[],
+  targetPlayer: PlayerId,
+  isHeiJinWinner: boolean,
+): boolean {
+  // 用户规则：黑金局的获胜方直接视为“上一位选手存在犯规”。
+  if (isHeiJinWinner) {
+    return true;
+  }
+
+  const upstream = getUpstreamPlayerForAnalysis(order, targetPlayer);
+  if (!upstream) return false;
+  return round.tags.some((tag) => tag.player === upstream && isFoulType(tag.type));
+}
+
+export function calcWinnerAnalysisStats(
+  match: MatchRecord,
+): Record<PlayerId, WinnerAnalysisStats> {
+  const players: PlayerId[] = match.mode === 'trio' ? [1, 2, 3] : [1, 2];
+  const sortedRounds = [...match.rounds].sort((a, b) => a.roundNumber - b.roundNumber);
+  const computedOrders = buildComputedRoundOrders(match);
+
+  const statsByPlayer: Record<PlayerId, WinnerAnalysisStats> = {
+    1: { winCount: 0, upstreamFoulWinCount: 0, upstreamFoulNotWinCount: 0 },
+    2: { winCount: 0, upstreamFoulWinCount: 0, upstreamFoulNotWinCount: 0 },
+    3: { winCount: 0, upstreamFoulWinCount: 0, upstreamFoulNotWinCount: 0 },
+  };
+
+  for (const round of sortedRounds) {
+    const order = computedOrders[round.roundNumber] ?? getRoundOrderForAnalysis(round, match.mode);
+    const winner = getRoundWinnerPlayer(round.tags, match.mode, order);
+    const winTag = getRoundWinTag(round.tags);
+    if (!winner || !players.includes(winner)) continue;
+
+    statsByPlayer[winner].winCount += 1;
+
+    const winnerHasUpstreamFoul = hasUpstreamFoulForAnalysis(
+      round,
+      order,
+      winner,
+      Boolean(winTag?.isHeiJin),
+    );
+    if (winnerHasUpstreamFoul) {
+      statsByPlayer[winner].upstreamFoulWinCount += 1;
+    }
+
+    for (const player of players) {
+      if (player === winner) continue;
+      const hasUpstreamFoul = hasUpstreamFoulForAnalysis(round, order, player, false);
+      if (hasUpstreamFoul) {
+        statsByPlayer[player].upstreamFoulNotWinCount += 1;
+      }
+    }
+  }
+
+  return statsByPlayer;
+}
+

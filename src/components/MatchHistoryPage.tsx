@@ -7,7 +7,7 @@ import {
   EditOutlined,
 } from '@ant-design/icons';
 import { Button, Card, Checkbox, Empty, List, Space, Spin, Tag, Typography } from 'antd';
-import { calcMatchOverview } from '../domain/scoring';
+import { calcMatchOverview, calcWinnerAnalysisStats } from '../domain/scoring';
 import { useMatch } from '../context/MatchContext';
 import { formatDateTime, formatMatchPlayersLabel } from '../utils/formatTime';
 import { ConfirmModal } from './ConfirmModal';
@@ -132,6 +132,7 @@ export function MatchHistoryPage() {
             split={false}
             renderItem={(m) => {
               const overview = calcMatchOverview(m);
+              const winnerStats = calcWinnerAnalysisStats(m);
               const isCurrent = currentMatch?.id === m.id;
               const isSelected = selectedIds.has(m.id);
               const playersLabel = formatMatchPlayersLabel(m);
@@ -173,14 +174,14 @@ export function MatchHistoryPage() {
                       </Typography.Text>
                       <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-sm">
                         <Tag className="m-0 inline-flex w-auto flex-none whitespace-nowrap rounded-full px-2 py-1 text-center" style={{ color: '#1677ff' }}>
-                          {m.player1Name} {overview.player1.totalScore}
+                          {m.player1Name} {overview.player1.totalScore}/{winnerStats[1].winCount}/{winnerStats[1].upstreamFoulWinCount}/{winnerStats[1].upstreamFoulNotWinCount}
                         </Tag>
                         <Tag className="m-0 inline-flex w-auto flex-none whitespace-nowrap rounded-full px-2 py-1 text-center" style={{ color: '#f53f3f' }}>
-                          {m.player2Name} {overview.player2.totalScore}
+                          {m.player2Name} {overview.player2.totalScore}/{winnerStats[2].winCount}/{winnerStats[2].upstreamFoulWinCount}/{winnerStats[2].upstreamFoulNotWinCount}
                         </Tag>
                         {m.mode === 'trio' && overview.player3 && (
                           <Tag className="m-0 inline-flex w-auto flex-none whitespace-nowrap rounded-full px-2 py-1 text-center" style={{ color: '#d48806' }}>
-                            {m.player3Name ?? '选手3'} {overview.player3.totalScore}
+                            {m.player3Name ?? '选手3'} {overview.player3.totalScore}/{winnerStats[3].winCount}/{winnerStats[3].upstreamFoulWinCount}/{winnerStats[3].upstreamFoulNotWinCount}
                           </Tag>
                         )}
                       </div>

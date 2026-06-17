@@ -7,6 +7,7 @@ import { PageHeader } from './components/PageHeader';
 import { PendingTags } from './components/PendingTags';
 import { ScoreRuleGuide } from './components/ScoreRuleGuide';
 import { PlayerScoreBarList } from './components/PlayerScoreBarList';
+import { WinnerAnalysis } from './components/WinnerAnalysis';
 import { QrErrorDetailModal } from './components/QrErrorDetailModal';
 import { RoundEditModal } from './components/RoundEditModal';
 import { RoundHistory } from './components/RoundHistory';
@@ -41,6 +42,7 @@ function ScoringView() {
       >
         <PageHeader />
         <OverviewTable match={match} />
+        {isArchived && <WinnerAnalysis match={match} />}
         <div className="scroll-content flex-1 overflow-y-auto pb-6">
           {!isArchived && (
             <>
