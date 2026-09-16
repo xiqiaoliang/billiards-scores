@@ -1,10 +1,35 @@
-import { Button, Card, Slider, Space, Typography } from 'antd';
+import { Button, Card, InputNumber, Segmented, Slider, Space, Typography } from 'antd';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { BreathingLightBackground } from '../components/BreathingLightBackground';
 
 const PRESET_SPEEDS = [0.25, 0.5, 1, 1.5, 2, 5];
+const COUNTDOWN_PRESETS = [10, 30, 60, 120, 300];
 const MIN_SPEED = 0.1;
 const MAX_SPEED = 8;
+const MIN_COUNTDOWN_SECONDS = 1;
+const MAX_COUNTDOWN_SECONDS = 359999;
+
+function getInitialSpeedFromUrl() {
+  const searchParams = new URLSearchParams(window.location.search);
+  let raw = searchParams.get('speed');
+
+  if (!raw && window.location.hash.includes('?')) {
+    const hashQuery = window.location.hash.split('?')[1] ?? '';
+    const hashParams = new URLSearchParams(hashQuery);
+    raw = hashParams.get('speed');
+  }
+
+  if (!raw) {
+    return 1;
+  }
+
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed)) {
+    return 1;
+  }
+
+  return Math.min(MAX_SPEED, Math.max(MIN_SPEED, parsed));
+}
 
 function formatTime(elapsedMs: number) {
   const safeElapsed = Math.max(0, Math.floor(elapsedMs));
@@ -18,18 +43,30 @@ function formatTime(elapsedMs: number) {
 }
 
 export default function TimerPage() {
+  const [mode, setMode] = useState<'stopwatch' | 'countdown'>('stopwatch');
   const [isRunning, setIsRunning] = useState(false);
   const [elapsedMs, setElapsedMs] = useState(0);
-  const [speed, setSpeed] = useState(1);
+  const [speed, setSpeed] = useState(() => getInitialSpeedFromUrl());
   const [realDeltaMs, setRealDeltaMs] = useState(0);
+  const [countdownSeconds, setCountdownSeconds] = useState(60);
 
   const rafIdRef = useRef<number | null>(null);
   const simAnchorRealRef = useRef<number | null>(null);
   const simAnchorElapsedRef = useRef(0);
   const runRealStartRef = useRef<number | null>(null);
   const speedRef = useRef(speed);
+  const modeRef = useRef(mode);
+  const countdownTargetRef = useRef(countdownSeconds * 1000);
 
-  const viewModel = useMemo(() => formatTime(elapsedMs), [elapsedMs]);
+  const countdownTargetMs = useMemo(() => countdownSeconds * 1000, [countdownSeconds]);
+  const displayMs = useMemo(() => {
+    if (mode === 'countdown') {
+      return Math.max(0, countdownTargetMs - elapsedMs);
+    }
+    return elapsedMs;
+  }, [countdownTargetMs, elapsedMs, mode]);
+
+  const viewModel = useMemo(() => formatTime(displayMs), [displayMs]);
 
   const cancelAnimation = () => {
     if (rafIdRef.current !== null) {
@@ -45,6 +82,19 @@ export default function TimerPage() {
 
     return simAnchorElapsedRef.current + (now - simAnchorRealRef.current) * speedRef.current;
   };
+
+  useEffect(() => {
+    modeRef.current = mode;
+  }, [mode]);
+
+  useEffect(() => {
+    countdownTargetRef.current = countdownTargetMs;
+
+    if (!isRunning && modeRef.current === 'countdown' && elapsedMs > countdownTargetMs) {
+      setElapsedMs(countdownTargetMs);
+      simAnchorElapsedRef.current = countdownTargetMs;
+    }
+  }, [countdownTargetMs, elapsedMs, isRunning]);
 
   useEffect(() => {
     if (isRunning && simAnchorRealRef.current !== null) {
@@ -65,7 +115,20 @@ export default function TimerPage() {
     }
 
     const tick = (now: number) => {
-      setElapsedMs(computeCurrentElapsed(now));
+      const progressed = computeCurrentElapsed(now);
+      if (modeRef.current === 'countdown') {
+        const target = countdownTargetRef.current;
+        if (progressed >= target) {
+          simAnchorElapsedRef.current = target;
+          simAnchorRealRef.current = null;
+          runRealStartRef.current = null;
+          setElapsedMs(target);
+          setIsRunning(false);
+          return;
+        }
+      }
+
+      setElapsedMs(progressed);
       rafIdRef.current = requestAnimationFrame(tick);
     };
 
@@ -86,9 +149,20 @@ export default function TimerPage() {
   const onStart = () => {
     if (isRunning) return;
 
+    if (mode === 'countdown') {
+      if (countdownTargetMs <= 0) {
+        return;
+      }
+      if (elapsedMs >= countdownTargetMs) {
+        setElapsedMs(0);
+        simAnchorElapsedRef.current = 0;
+      }
+    }
+
     const now = performance.now();
     simAnchorRealRef.current = now;
-    simAnchorElapsedRef.current = elapsedMs;
+    simAnchorElapsedRef.current =
+      mode === 'countdown' && elapsedMs >= countdownTargetMs ? 0 : elapsedMs;
     runRealStartRef.current = now;
     setIsRunning(true);
   };
@@ -126,8 +200,68 @@ export default function TimerPage() {
           className="timer-card timer-card-dark timer-shell-card border-0"
           bodyStyle={{ padding: 20 }}
         >
+          <div className="mb-3 flex justify-center">
+            <Segmented
+              value={mode}
+              onChange={(value) => {
+                const nextMode = value as 'stopwatch' | 'countdown';
+                if (isRunning) {
+                  onPause();
+                }
+                setMode(nextMode);
+                setElapsedMs(0);
+                simAnchorElapsedRef.current = 0;
+                simAnchorRealRef.current = null;
+              }}
+              options={[
+                { label: '正计时', value: 'stopwatch' },
+                { label: '倒计时', value: 'countdown' },
+              ]}
+            />
+          </div>
+
+          {mode === 'countdown' && (
+            <div className="mb-3 flex flex-col gap-2 rounded-xl border border-slate-600/55 bg-slate-900/40 p-3">
+              <Typography.Text className="text-xs text-slate-300">倒计时秒数</Typography.Text>
+              <div className="flex items-center gap-2">
+                <InputNumber
+                  className="timer-countdown-input"
+                  min={MIN_COUNTDOWN_SECONDS}
+                  max={MAX_COUNTDOWN_SECONDS}
+                  step={1}
+                  value={countdownSeconds}
+                  controls
+                  disabled={isRunning}
+                  onChange={(value) => {
+                    if (value === null) return;
+                    const next = Math.min(
+                      MAX_COUNTDOWN_SECONDS,
+                      Math.max(MIN_COUNTDOWN_SECONDS, Math.floor(value)),
+                    );
+                    setCountdownSeconds(next);
+                  }}
+                />
+                <Typography.Text className="text-xs text-slate-400">秒</Typography.Text>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {COUNTDOWN_PRESETS.map((preset) => (
+                  <Button
+                    key={preset}
+                    size="small"
+                    className="timer-preset-btn"
+                    type={countdownSeconds === preset ? 'primary' : 'default'}
+                    disabled={isRunning}
+                    onClick={() => setCountdownSeconds(preset)}
+                  >
+                    {preset}s
+                  </Button>
+                ))}
+              </div>
+            </div>
+          )}
+
           <Typography.Text className="timer-title block text-xs tracking-[0.28em] text-slate-400">
-            秒表
+            {mode === 'countdown' ? '倒计时' : '秒表'}
           </Typography.Text>
           <div className="timer-display timer-display-dark mt-3 flex items-end justify-center gap-2 rounded-2xl px-3 py-8">
             <span className="timer-seconds text-[60px] leading-none text-slate-50">

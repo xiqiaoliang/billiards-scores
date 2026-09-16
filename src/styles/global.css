@@ -236,6 +236,39 @@ body {
   color: #e2e8f0;
 }
 
+.timer-screen-dark .ant-segmented {
+  background: rgba(15, 23, 42, 0.72);
+  border: 1px solid rgba(71, 85, 105, 0.55);
+}
+
+.timer-screen-dark .ant-segmented-item {
+  color: #cbd5e1;
+}
+
+.timer-screen-dark .ant-segmented-item-selected {
+  color: #ecfeff;
+  background: linear-gradient(120deg, rgba(34, 211, 238, 0.45) 0%, rgba(37, 99, 235, 0.5) 100%);
+}
+
+.timer-countdown-input.ant-input-number {
+  width: 150px;
+  background: rgba(15, 23, 42, 0.7);
+  border-color: rgba(100, 116, 139, 0.55);
+}
+
+.timer-countdown-input.ant-input-number .ant-input-number-input {
+  color: #e2e8f0;
+}
+
+.timer-countdown-input.ant-input-number:hover,
+.timer-countdown-input.ant-input-number-focused {
+  border-color: rgba(34, 211, 238, 0.75);
+}
+
+.timer-countdown-input.ant-input-number .ant-input-number-handler-wrap {
+  background: rgba(30, 41, 59, 0.85);
+}
+
 .timer-screen-dark .ant-slider-track {
   background-color: #22d3ee;
 }
