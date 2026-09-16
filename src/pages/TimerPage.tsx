@@ -68,6 +68,15 @@ export default function TimerPage() {
 
   const viewModel = useMemo(() => formatTime(displayMs), [displayMs]);
 
+  useEffect(() => {
+    const previousTitle = document.title;
+    document.title = '计时器';
+
+    return () => {
+      document.title = previousTitle;
+    };
+  }, []);
+
   const cancelAnimation = () => {
     if (rafIdRef.current !== null) {
       cancelAnimationFrame(rafIdRef.current);
