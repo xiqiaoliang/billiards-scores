@@ -1,4 +1,4 @@
-import { NavLink, Navigate, Route, BrowserRouter as Router, Routes } from 'react-router-dom';
+import { HashRouter as Router, NavLink, Navigate, Route, Routes } from 'react-router-dom';
 import HomePage from './pages/HomePage';
 import TimerPage from './pages/TimerPage';
 
@@ -29,7 +29,7 @@ export default function App() {
   const showBottomNav = false;
 
   return (
-    <Router basename={import.meta.env.BASE_URL}>
+    <Router>
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/timer" element={<TimerPage />} />
