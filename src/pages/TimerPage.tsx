@@ -43,7 +43,7 @@ function formatTime(elapsedMs: number) {
 }
 
 export default function TimerPage() {
-  const [mode, setMode] = useState<'stopwatch' | 'countdown'>('stopwatch');
+  const [mode, setMode] = useState<'stopwatch' | 'countdown'>('countdown');
   const [isRunning, setIsRunning] = useState(false);
   const [elapsedMs, setElapsedMs] = useState(0);
   const [speed, setSpeed] = useState(() => getInitialSpeedFromUrl());
@@ -53,7 +53,8 @@ export default function TimerPage() {
   const rafIdRef = useRef<number | null>(null);
   const simAnchorRealRef = useRef<number | null>(null);
   const simAnchorElapsedRef = useRef(0);
-  const runRealStartRef = useRef<number | null>(null);
+  const segmentRealStartRef = useRef<number | null>(null);
+  const accumulatedRealMsRef = useRef(0);
   const speedRef = useRef(speed);
   const modeRef = useRef(mode);
   const countdownTargetRef = useRef(countdownSeconds * 1000);
@@ -128,10 +129,18 @@ export default function TimerPage() {
       if (modeRef.current === 'countdown') {
         const target = countdownTargetRef.current;
         if (progressed >= target) {
+          const segmentRealDelta =
+            segmentRealStartRef.current === null
+              ? 0
+              : Math.max(0, now - segmentRealStartRef.current);
+          const nextAccumulatedReal = accumulatedRealMsRef.current + segmentRealDelta;
+          accumulatedRealMsRef.current = nextAccumulatedReal;
+
           simAnchorElapsedRef.current = target;
           simAnchorRealRef.current = null;
-          runRealStartRef.current = null;
+          segmentRealStartRef.current = null;
           setElapsedMs(target);
+          setRealDeltaMs(nextAccumulatedReal);
           setIsRunning(false);
           return;
         }
@@ -165,6 +174,8 @@ export default function TimerPage() {
       if (elapsedMs >= countdownTargetMs) {
         setElapsedMs(0);
         simAnchorElapsedRef.current = 0;
+        setRealDeltaMs(0);
+        accumulatedRealMsRef.current = 0;
       }
     }
 
@@ -172,7 +183,7 @@ export default function TimerPage() {
     simAnchorRealRef.current = now;
     simAnchorElapsedRef.current =
       mode === 'countdown' && elapsedMs >= countdownTargetMs ? 0 : elapsedMs;
-    runRealStartRef.current = now;
+    segmentRealStartRef.current = now;
     setIsRunning(true);
   };
 
@@ -180,13 +191,16 @@ export default function TimerPage() {
     if (!isRunning) return;
     const now = performance.now();
     const frozen = computeCurrentElapsed(now);
-    const realDelta =
-      runRealStartRef.current === null ? 0 : Math.max(0, now - runRealStartRef.current);
+    const segmentRealDelta =
+      segmentRealStartRef.current === null ? 0 : Math.max(0, now - segmentRealStartRef.current);
+    const nextAccumulatedReal = accumulatedRealMsRef.current + segmentRealDelta;
+    accumulatedRealMsRef.current = nextAccumulatedReal;
+
     simAnchorElapsedRef.current = frozen;
     simAnchorRealRef.current = null;
-    runRealStartRef.current = null;
+    segmentRealStartRef.current = null;
     setElapsedMs(frozen);
-    setRealDeltaMs(realDelta);
+    setRealDeltaMs(nextAccumulatedReal);
     setIsRunning(false);
   };
 
@@ -197,7 +211,8 @@ export default function TimerPage() {
     setRealDeltaMs(0);
     simAnchorRealRef.current = null;
     simAnchorElapsedRef.current = 0;
-    runRealStartRef.current = null;
+    segmentRealStartRef.current = null;
+    accumulatedRealMsRef.current = 0;
   };
 
   return (
@@ -219,8 +234,11 @@ export default function TimerPage() {
                 }
                 setMode(nextMode);
                 setElapsedMs(0);
+                setRealDeltaMs(0);
                 simAnchorElapsedRef.current = 0;
                 simAnchorRealRef.current = null;
+                segmentRealStartRef.current = null;
+                accumulatedRealMsRef.current = 0;
               }}
               options={[
                 { label: '正计时', value: 'stopwatch' },
