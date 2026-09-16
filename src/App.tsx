@@ -1,115 +1,39 @@
-import { ConfirmModal } from './components/ConfirmModal';
-import { ExportPreviewModal } from './components/ExportPreviewModal';
-import { GlobalToast } from './components/GlobalToast';
-import { MatchHistoryPage } from './components/MatchHistoryPage';
-import { OverviewTable } from './components/OverviewTable';
-import { PageHeader } from './components/PageHeader';
-import { PendingTags } from './components/PendingTags';
-import { ScoreRuleGuide } from './components/ScoreRuleGuide';
-import { PlayerScoreBarList } from './components/PlayerScoreBarList';
-import { WinnerAnalysis } from './components/WinnerAnalysis';
-import { QrErrorDetailModal } from './components/QrErrorDetailModal';
-import { RoundEditModal } from './components/RoundEditModal';
-import { RoundHistory } from './components/RoundHistory';
-import { SubmitSection } from './components/SubmitSection';
-import { MatchProvider, useMatch } from './context/MatchContext';
-import type { PlayerId } from './domain/types';
-import { Spin, Typography } from 'antd';
+import { NavLink, Navigate, Route, BrowserRouter as Router, Routes } from 'react-router-dom';
+import HomePage from './pages/HomePage';
+import TimerPage from './pages/TimerPage';
 
-function ScoringView() {
-  const matchApi = useMatch() as ReturnType<typeof useMatch> & {
-    reorderPlayerOrder: (order: PlayerId[]) => Promise<void>;
-  };
-  const {
-    match,
-    exportRootRef,
-    displayPlayerOrder,
-    isReadOnly,
-    isEditingRound,
-    reorderPlayerOrder,
-  } = matchApi;
-  if (!match) return null;
-
-  const isArchived = match.status === 'archived';
-  const canReorderScoreCards =
-    !isReadOnly && !isEditingRound && match.rounds.length === 0;
+function MobileNav() {
+  const getClassName = ({ isActive }: { isActive: boolean }) =>
+    [
+      'rounded-full px-4 py-2 text-sm font-semibold transition',
+      isActive
+        ? 'bg-sky-500 text-white shadow-sm'
+        : 'bg-white text-slate-600 ring-1 ring-slate-200',
+    ].join(' ');
 
   return (
-    <div className="flex min-h-dvh flex-col bg-slate-100">
-      <div
-        ref={exportRootRef}
-        className="export-capture-root flex flex-1 flex-col bg-white shadow-sm"
-      >
-        <PageHeader />
-        <OverviewTable match={match} />
-        {isArchived && <WinnerAnalysis match={match} />}
-        <div className="scroll-content flex-1 overflow-y-auto pb-6">
-          {!isArchived && (
-            <>
-              <PlayerScoreBarList
-                players={displayPlayerOrder}
-                canReorder={canReorderScoreCards}
-                onReorder={(nextOrder) => {
-                  void reorderPlayerOrder(nextOrder);
-                }}
-              />
-
-              <section className="px-4 py-3">
-                <div className="mb-2 flex items-center justify-between gap-2">
-                  <Typography.Title level={5} className="!mb-0">
-                    本局待提交得分（点击标签可单独删除）
-                  </Typography.Title>
-                  <ScoreRuleGuide />
-                </div>
-                <PendingTags />
-              </section>
-
-              <SubmitSection />
-            </>
-          )}
-          <RoundHistory match={match} />
-        </div>
-      </div>
-      <ConfirmModal />
-      <ExportPreviewModal />
-      <QrErrorDetailModal />
-      <GlobalToast />
-      <RoundEditModal />
-    </div>
-  );
-}
-
-function AppContent() {
-  const { loading, match, view } = useMatch();
-
-  if (loading || !match) {
-    return (
-      <div className="flex min-h-dvh flex-col items-center justify-center gap-2 bg-slate-100 text-slate-500">
-        <Spin size="large" />
-        <Typography.Text className="text-slate-500">加载中...</Typography.Text>
-      </div>
-    );
-  }
-
-  if (view === 'history') {
-    return (
-      <div className="flex min-h-dvh flex-col bg-slate-100">
-        <MatchHistoryPage />
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex min-h-dvh flex-col bg-slate-100">
-      <ScoringView />
+    <div className="pointer-events-none fixed inset-x-0 bottom-4 z-30 flex justify-center px-4" data-export-hide>
+      <nav className="pointer-events-auto flex items-center gap-2 rounded-full bg-slate-100/90 p-2 shadow-md ring-1 ring-slate-200 backdrop-blur">
+        <NavLink to="/" className={getClassName} end>
+          追分
+        </NavLink>
+        <NavLink to="/timer" className={getClassName}>
+          计时器
+        </NavLink>
+      </nav>
     </div>
   );
 }
 
 export default function App() {
   return (
-    <MatchProvider>
-      <AppContent />
-    </MatchProvider>
+    <Router>
+      <Routes>
+        <Route path="/" element={<HomePage />} />
+        <Route path="/timer" element={<TimerPage />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+      <MobileNav />
+    </Router>
   );
 }
