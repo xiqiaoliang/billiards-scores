@@ -26,6 +26,8 @@ function MobileNav() {
 }
 
 export default function App() {
+  const showBottomNav = false;
+
   return (
     <Router>
       <Routes>
@@ -33,7 +35,7 @@ export default function App() {
         <Route path="/timer" element={<TimerPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
-      <MobileNav />
+      {showBottomNav && <MobileNav />}
     </Router>
   );
 }
