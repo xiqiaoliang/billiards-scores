@@ -281,3 +281,38 @@ body {
   box-shadow: 0 0 0 2px #22d3ee;
 }
 
+.ant-btn {
+  line-height: 1;
+}
+
+.entry-page {
+  background:
+    radial-gradient(circle at 10% -8%, rgba(6, 182, 212, 0.22), transparent 34%),
+    radial-gradient(circle at 90% 6%, rgba(14, 116, 144, 0.2), transparent 30%),
+    linear-gradient(180deg, #f0f9ff 0%, #ecfeff 44%, #f8fafc 100%);
+}
+
+.entry-hero {
+  background:
+    radial-gradient(circle at 100% 0%, rgba(125, 211, 252, 0.22), transparent 45%),
+    linear-gradient(135deg, #0f766e 0%, #0369a1 100%);
+}
+
+.entry-card.ant-card {
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 14px 30px rgba(15, 23, 42, 0.08);
+  backdrop-filter: blur(4px);
+}
+
+.entry-card-btn.ant-btn-primary {
+  background: linear-gradient(120deg, #0ea5e9 0%, #0284c7 100%);
+  border-color: #0284c7;
+}
+
+.entry-card-btn.ant-btn-primary:not(:disabled):hover {
+  background: linear-gradient(120deg, #38bdf8 0%, #0369a1 100%) !important;
+  border-color: #0369a1 !important;
+}
+
+

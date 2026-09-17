@@ -1,5 +1,7 @@
+import { HomeOutlined } from '@ant-design/icons';
 import { Button, Card, InputNumber, Segmented, Slider, Space, Typography } from 'antd';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { BreathingLightBackground } from '../components/BreathingLightBackground';
 
 const PRESET_SPEEDS = [0.25, 0.5, 1, 1.5, 2, 5];
@@ -220,10 +222,19 @@ export default function TimerPage() {
       <BreathingLightBackground />
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_40%,rgba(8,47,73,0.08),rgba(2,6,23,0.75))]" />
       <div className="relative z-10 mx-auto flex w-full max-w-md flex-col gap-4">
-        <Card
-          className="timer-card timer-card-dark timer-shell-card border-0"
-          bodyStyle={{ padding: 20 }}
-        >
+        <div className="relative">
+          <Link to="/" className="timer-home-link absolute left-3 top-3 z-10" aria-label="返回首页">
+            <Button
+              type="text"
+              shape="circle"
+              icon={<HomeOutlined />}
+              className="!bg-slate-900/70 !text-slate-200 hover:!bg-slate-800/85 hover:!text-slate-50"
+            />
+          </Link>
+          <Card
+            className="timer-card timer-card-dark timer-shell-card border-0"
+            bodyStyle={{ padding: 20 }}
+          >
           <div className="mb-3 flex justify-center">
             <Segmented
               value={mode}
@@ -323,7 +334,8 @@ export default function TimerPage() {
               清零
             </Button>
           </Space>
-        </Card>
+          </Card>
+        </div>
 
         <Card className="timer-card-dark timer-shell-card border-0" bodyStyle={{ padding: 18 }}>
           <div className="mb-2 flex items-center justify-between">

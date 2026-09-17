@@ -1,9 +1,11 @@
-import { DownOutlined } from '@ant-design/icons';
+import { DownOutlined, HomeOutlined } from '@ant-design/icons';
 import { Button, Dropdown, Typography } from 'antd';
+import { useNavigate } from 'react-router-dom';
 import { useMatch } from '../context/MatchContext';
 import { formatArchivedMatchTitle } from '../utils/formatTime';
 
 export function PageHeader() {
+  const navigate = useNavigate();
   const {
     match,
     isReadOnly,
@@ -20,10 +22,21 @@ export function PageHeader() {
   return (
     <header className="relative grid min-h-14 grid-cols-[1fr_auto_1fr] items-center border-b border-slate-200 bg-white px-3 shadow-sm">
       <div className="justify-self-start flex items-center gap-1" data-export-hide>
-        <Button type="text" className="!px-2" onClick={() => void openHistory()}>
+        <Button
+          type="text"
+          className="!px-1"
+          icon={<HomeOutlined />}
+          aria-label="返回首页"
+          onClick={() => navigate('/')}
+        />
+        <Button
+          type="text"
+          className="!px-1"
+          onClick={() => void openHistory()}
+        >
           历史
         </Button>
-        <Button type="text" className="!px-2" onClick={openNewMatchModal}>
+        <Button type="text" className="!px-1" onClick={openNewMatchModal}>
           新比赛
         </Button>
       </div>
@@ -55,7 +68,12 @@ export function PageHeader() {
             </Button>
           </Dropdown>
         ) : (
-          <Button danger type="text" className="!px-2" onClick={openArchiveModal}>
+          <Button
+            danger
+            type="text"
+            className="!px-1"
+            onClick={openArchiveModal}
+          >
             结束本场比赛
           </Button>
         )}
